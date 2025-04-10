@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  # Trigger on release tags
+  release:
+    types: [created]
   # Allow manual triggering
   workflow_dispatch:
 
@@ -38,7 +41,30 @@ jobs:
       run: npm run package
     
     - name: Upload extension package
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: launch-sidebar-extension
         path: "*.vsix"
+        
+  publish:
+    needs: build
+    if: success() && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Publish to Visual Studio Marketplace
+        run: npx @vscode/vsce publish -p ${{ secrets.VSCE_PAT }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
