@@ -2,7 +2,7 @@
   "name": "launch-sidebar",
   "displayName": "Launch Sidebar",
   "description": "View and quickly launch debug configurations from a sidebar",
-  "publisher": "Arthur Vaverko",
+  "publisher": "arthurvaverko",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.99.0"
