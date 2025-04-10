@@ -1,0 +1,114 @@
+{
+  "name": "launch-sidebar",
+  "displayName": "Launch Sidebar",
+  "description": "View and quickly launch debug configurations from a sidebar",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.99.0"
+  },
+  "categories": [
+    "Other",
+    "Debuggers"
+  ],
+  "activationEvents": [
+    "onView:launchConfigurations"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "launch-sidebar",
+          "title": "Launch Configurations",
+          "icon": "resources/rocket.svg"
+        }
+      ]
+    },
+    "views": {
+      "launch-sidebar": [
+        {
+          "id": "launchConfigurations",
+          "name": "Debug Configurations",
+          "icon": "resources/rocket.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "launchConfigurations.refresh",
+        "title": "Refresh Launch Configurations",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "launchConfigurations.launch",
+        "title": "Launch Debug Configuration",
+        "icon": "$(play)"
+      },
+      {
+        "command": "launchConfigurations.edit",
+        "title": "Edit Launch Configuration",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "launchConfigurations.runScript",
+        "title": "Run npm script",
+        "icon": "$(play)"
+      },
+      {
+        "command": "launchConfigurations.editScript",
+        "title": "Edit npm script",
+        "icon": "$(gear)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "launchConfigurations.refresh",
+          "when": "view == launchConfigurations",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "launchConfigurations.launch",
+          "when": "view == launchConfigurations && viewItem == configuration",
+          "group": "inline"
+        },
+        {
+          "command": "launchConfigurations.edit",
+          "when": "view == launchConfigurations && viewItem == configuration",
+          "group": "inline"
+        },
+        {
+          "command": "launchConfigurations.runScript",
+          "when": "view == launchConfigurations && viewItem == script",
+          "group": "inline"
+        },
+        {
+          "command": "launchConfigurations.editScript",
+          "when": "view == launchConfigurations && viewItem == script",
+          "group": "inline"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.99.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
+    "eslint": "^9.23.0",
+    "typescript": "^5.8.2",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1"
+  }
+}
