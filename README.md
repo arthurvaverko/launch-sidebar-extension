@@ -1,6 +1,6 @@
 # Launch Sidebar
 
-[![Version](https://img.shields.io/badge/version-0.0.2-blue)](https://github.com/arthurvaverko/launch-sidebar-extension/releases)
+[![Version](https://img.shields.io/badge/version-0.0.3-blue)](https://github.com/arthurvaverko/launch-sidebar-extension/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Install-brightgreen)](https://marketplace.visualstudio.com/items?itemName=arthurvaverko.launch-sidebar)
 
@@ -92,6 +92,10 @@ Contributions are welcome! Feel free to submit a Pull Request on [GitHub](https:
 This extension is licensed under the [MIT License](LICENSE).
 
 ## Release Notes
+
+### 0.0.3
+- Fix finding JetBrains config
+- Fix running JetBrains confing with project_dir variables
 
 ### 0.0.2
 

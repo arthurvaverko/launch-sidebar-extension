@@ -11,7 +11,7 @@ Launch Sidebar is a VS Code extension that creates a dedicated sidebar view allo
 
 The extension provides a unified, hierarchical view organized by workspace folder, with one-click execution capabilities.
 
-Current version: 0.0.2
+Current version: 0.0.3
 
 ## Key Features
 
