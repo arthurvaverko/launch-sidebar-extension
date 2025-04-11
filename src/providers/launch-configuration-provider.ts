@@ -105,12 +105,14 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
   /**
    * Adds sections for nested package.json files in workspace folders
    * Scans up to 2 levels deep for better monorepo support
+   * Excludes node_modules directories
    */
   private async addNestedPackageSections(folder: vscode.WorkspaceFolder, sections: LaunchTreeItem[]): Promise<void> {
     try {
       const directories = fs.readdirSync(folder.uri.fsPath, { withFileTypes: true });
       for (const dir of directories) {
-        if (dir.isDirectory()) {
+        // Skip node_modules directories
+        if (dir.isDirectory() && dir.name !== 'node_modules') {
           const nestedPackageJsonPath = path.join(folder.uri.fsPath, dir.name, 'package.json');
           if (fs.existsSync(nestedPackageJsonPath)) {
             sections.push(new SectionItem(
@@ -125,7 +127,8 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
           const nestedDirPath = path.join(folder.uri.fsPath, dir.name);
           const nestedDirectories = fs.readdirSync(nestedDirPath, { withFileTypes: true });
           for (const nestedDir of nestedDirectories) {
-            if (nestedDir.isDirectory()) {
+            // Skip node_modules directories at this level too
+            if (nestedDir.isDirectory() && nestedDir.name !== 'node_modules') {
               const deepNestedPackageJsonPath = path.join(nestedDirPath, nestedDir.name, 'package.json');
               if (fs.existsSync(deepNestedPackageJsonPath)) {
                 sections.push(new SectionItem(
