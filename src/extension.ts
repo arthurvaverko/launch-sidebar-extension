@@ -75,9 +75,7 @@ export function activate(context: vscode.ExtensionContext) {
   
   // Set tree view options for larger fonts and spacing
   treeView.title = "📦 LAUNCH SIDEBAR";
-  
-  // Apply custom CSS if possible - reference to the CSS file
-  const cssPath = vscode.Uri.file(path.join(context.extensionPath, 'resources', 'sidebar-style.css'));
+
   
   // Add tree view to disposables to avoid memory leaks
   context.subscriptions.push(treeView);
