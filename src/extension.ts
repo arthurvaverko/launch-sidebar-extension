@@ -9,7 +9,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 import { LaunchConfigurationItem } from './models/launch-items';
-import { ScriptItem } from './models/tree-items';
+import { ScriptItem } from './models/script-item';
 import { JetBrainsRunConfigItem } from './models/jetbrains-items';
 import { LaunchConfigurationProvider } from './providers/launch-configuration-provider';
 
@@ -76,7 +76,6 @@ export function activate(context: vscode.ExtensionContext) {
   // Set tree view options for larger fonts and spacing
   treeView.title = "📦 LAUNCH SIDEBAR";
 
-  
   // Add tree view to disposables to avoid memory leaks
   context.subscriptions.push(treeView);
   

@@ -5,7 +5,8 @@ import * as fs from 'fs';
 import { ConfigPosition } from '../models/config-position';
 import { LaunchConfigurationItem, LaunchConfigurationErrorItem } from '../models/launch-items';
 import { JetBrainsRunConfigItem } from '../models/jetbrains-items';
-import { ScriptItem, SectionItem } from '../models/tree-items';
+import { ScriptItem } from '../models/script-item';
+import { SectionItem } from '../models/section-item';
 import { detectPackageManager, detectRootPackageManager, PackageManager } from '../utils/package-manager';
 import { JetBrainsRunConfigParser } from '../utils/jetbrains-parser';
 
