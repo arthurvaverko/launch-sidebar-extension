@@ -63,6 +63,16 @@
         "command": "launchConfigurations.editScript",
         "title": "Edit npm script",
         "icon": "$(gear)"
+      },
+      {
+        "command": "launchConfigurations.runJetBrainsConfig",
+        "title": "Run JetBrains Configuration",
+        "icon": "$(play)"
+      },
+      {
+        "command": "launchConfigurations.editJetBrainsConfig",
+        "title": "Edit JetBrains Configuration", 
+        "icon": "$(gear)"
       }
     ],
     "menus": {
@@ -92,6 +102,16 @@
         {
           "command": "launchConfigurations.editScript",
           "when": "view == launchConfigurations && viewItem == script",
+          "group": "inline"
+        },
+        {
+          "command": "launchConfigurations.runJetBrainsConfig",
+          "when": "view == launchConfigurations && viewItem == jetbrains-run-config",
+          "group": "inline"
+        },
+        {
+          "command": "launchConfigurations.editJetBrainsConfig",
+          "when": "view == launchConfigurations && viewItem == jetbrains-run-config",
           "group": "inline"
         }
       ]

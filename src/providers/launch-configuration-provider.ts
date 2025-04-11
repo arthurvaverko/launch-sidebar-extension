@@ -4,11 +4,13 @@ import * as fs from 'fs';
 
 import { ConfigPosition } from '../models/config-position';
 import { LaunchConfigurationItem, LaunchConfigurationErrorItem } from '../models/launch-items';
+import { JetBrainsRunConfigItem } from '../models/jetbrains-items';
 import { ScriptItem, SectionItem } from '../models/tree-items';
 import { detectPackageManager, detectRootPackageManager, PackageManager } from '../utils/package-manager';
+import { JetBrainsRunConfigParser } from '../utils/jetbrains-parser';
 
 // Union type for our tree items
-export type LaunchTreeItem = LaunchConfigurationItem | LaunchConfigurationErrorItem | ScriptItem | SectionItem;
+export type LaunchTreeItem = LaunchConfigurationItem | LaunchConfigurationErrorItem | ScriptItem | SectionItem | JetBrainsRunConfigItem;
 
 /**
  * Tree data provider for the Launch Sidebar extension
@@ -48,6 +50,8 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
         return this.getLaunchConfigurations(element.workspaceFolder);
       } else if (element.sectionType === 'scripts' && element.packageJsonPath && element.workspaceFolder) {
         return this.getPackageScripts(element.packageJsonPath, element.workspaceFolder);
+      } else if (element.sectionType === 'jetbrains-configs' && element.workspaceFolder) {
+        return this.getJetBrainsConfigurations(element.workspaceFolder);
       }
       return [];
     }
@@ -62,7 +66,7 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
 
   /**
    * Get all sections for the sidebar
-   * Creates section headers for launch configurations and npm scripts
+   * Creates section headers for launch configurations, npm scripts, and JetBrains run configurations
    * for each workspace folder
    */
   private async getSections(): Promise<LaunchTreeItem[]> {
@@ -92,6 +96,16 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
           'scripts',
           folder,
           packageJsonPath
+        ));
+      }
+
+      // Add JetBrains run configurations section if a .run directory exists
+      const hasJetBrainsConfigs = await this.hasJetBrainsRunConfigurations(folder);
+      if (hasJetBrainsConfigs) {
+        sections.push(new SectionItem(
+          `${path.basename(folder.uri.fsPath)}: JetBrains Run Configurations`,
+          'jetbrains-configs',
+          folder
         ));
       }
 
@@ -350,6 +364,68 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
       }
     } catch (error) {
       console.error(`Error reading package.json scripts from ${packageJsonPath}:`, error);
+    }
+    
+    return items;
+  }
+
+  /**
+   * Checks if a workspace folder has JetBrains run configurations
+   */
+  private async hasJetBrainsRunConfigurations(folder: vscode.WorkspaceFolder): Promise<boolean> {
+    try {
+      // Look for .run directory (case insensitive)
+      const items = fs.readdirSync(folder.uri.fsPath, { withFileTypes: true });
+      
+      // Find the .run directory (may be .Run, .RUN, etc.)
+      const runDirEntry = items.find(item => 
+        item.isDirectory() && item.name.toLowerCase() === '.run'
+      );
+      
+      if (!runDirEntry) {
+        return false;
+      }
+      
+      const runDirPath = path.join(folder.uri.fsPath, runDirEntry.name);
+      
+      // Check if there are any XML files in the .run directory
+      const xmlFiles = fs.readdirSync(runDirPath, { withFileTypes: true })
+        .filter(file => file.isFile() && path.extname(file.name).toLowerCase() === '.xml');
+      
+      return xmlFiles.length > 0;
+    } catch (err) {
+      console.error(`Error checking for JetBrains run configurations in ${folder.name}:`, err);
+      return false;
+    }
+  }
+
+  /**
+   * Get JetBrains run configurations for a specific workspace folder
+   * Reads the XML files in the .run directory and parses them
+   */
+  private async getJetBrainsConfigurations(folder: vscode.WorkspaceFolder): Promise<LaunchTreeItem[]> {
+    const items: LaunchTreeItem[] = [];
+    
+    try {
+      // Use the JetBrainsRunConfigParser to find and parse run configurations
+      const runConfigs = await JetBrainsRunConfigParser.findRunConfigurations(folder);
+      
+      // Sort configurations alphabetically by name
+      const sortedConfigs = [...runConfigs].sort((a, b) => a.name.localeCompare(b.name));
+      
+      // Create tree items for each configuration
+      for (const config of sortedConfigs) {
+        items.push(new JetBrainsRunConfigItem(
+          config.name,
+          config.type,
+          config.xmlFilePath,
+          folder,
+          config.packagePath,
+          config.command
+        ));
+      }
+    } catch (error) {
+      console.error(`Error reading JetBrains run configurations from ${folder.name}:`, error);
     }
     
     return items;

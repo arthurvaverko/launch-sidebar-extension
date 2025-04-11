@@ -10,6 +10,7 @@ import * as fs from 'fs';
 
 import { LaunchConfigurationItem } from './models/launch-items';
 import { ScriptItem } from './models/tree-items';
+import { JetBrainsRunConfigItem } from './models/jetbrains-items';
 import { LaunchConfigurationProvider } from './providers/launch-configuration-provider';
 
 /**
@@ -159,13 +160,84 @@ function registerCommands(
     }
   });
 
+  // Command: Run a JetBrains configuration
+  const runJetBrainsConfigCommand = vscode.commands.registerCommand('launchConfigurations.runJetBrainsConfig', async (item: JetBrainsRunConfigItem) => {
+    try {
+      // Get the directory containing the JetBrains run configuration
+      const projectDir = item.workspaceFolder.uri.fsPath;
+      
+      // Create a terminal for running the configuration
+      const terminal = vscode.window.createTerminal({
+        name: `JetBrains: ${item.name}`,
+        cwd: projectDir
+      });
+      
+      // Determine the command to run based on the configuration type
+      let command = '';
+      
+      if (item.type.includes('GoApplicationRunConfiguration')) {
+        if (item.packagePath) {
+          command = `go run ${item.packagePath}`;
+          if (item.cmdString) {
+            command += ` ${item.cmdString}`;
+          }
+        } else {
+          command = `go run .`;
+        }
+      } else if (item.type.includes('GoTestRunConfiguration')) {
+        if (item.packagePath) {
+          command = `go test ${item.packagePath}`;
+          if (item.cmdString) {
+            command += ` ${item.cmdString}`;
+          }
+        } else {
+          command = `go test ./...`;
+        }
+      } else if (item.type.includes('NodeJSConfigurationType')) {
+        command = `node ${item.packagePath || ''}`;
+      } else if (item.type.includes('JavaScriptTestRunnerJest')) {
+        command = `npx jest ${item.packagePath || ''}`;
+      } else if (item.type.includes('ReactNative')) {
+        command = `npx react-native start`;
+      } else {
+        // For unknown configuration types, just open the XML file
+        vscode.window.showInformationMessage(`Unknown configuration type: ${item.type}. Opening configuration file instead.`);
+        const document = await vscode.workspace.openTextDocument(vscode.Uri.file(item.xmlFilePath));
+        await vscode.window.showTextDocument(document);
+        return;
+      }
+      
+      // Run the command
+      terminal.sendText(command);
+      terminal.show();
+      
+      // Show notification
+      vscode.window.showInformationMessage(`Running JetBrains configuration: ${item.name}`);
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to run JetBrains configuration: ${error}`);
+    }
+  });
+  
+  // Command: Edit a JetBrains configuration
+  const editJetBrainsConfigCommand = vscode.commands.registerCommand('launchConfigurations.editJetBrainsConfig', async (item: JetBrainsRunConfigItem) => {
+    try {
+      // Open the XML file
+      const document = await vscode.workspace.openTextDocument(vscode.Uri.file(item.xmlFilePath));
+      await vscode.window.showTextDocument(document);
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to open JetBrains configuration for editing: ${error}`);
+    }
+  });
+
   // Add all disposables to the context subscriptions
   context.subscriptions.push(
     refreshCommand,
     launchCommand,
     editCommand,
     runScriptCommand,
-    editScriptCommand
+    editScriptCommand,
+    runJetBrainsConfigCommand,
+    editJetBrainsConfigCommand
   );
 }
 
@@ -188,10 +260,17 @@ function setupFileWatchers(
   packageJsonWatcher.onDidCreate(() => launchConfigurationProvider.refresh());
   packageJsonWatcher.onDidDelete(() => launchConfigurationProvider.refresh());
   
+  // Watch for changes to JetBrains run configuration files
+  const jetBrainsConfigWatcher = vscode.workspace.createFileSystemWatcher('**/.run/**/*.xml');
+  jetBrainsConfigWatcher.onDidChange(() => launchConfigurationProvider.refresh());
+  jetBrainsConfigWatcher.onDidCreate(() => launchConfigurationProvider.refresh());
+  jetBrainsConfigWatcher.onDidDelete(() => launchConfigurationProvider.refresh());
+  
   // Register the watchers for disposal when the extension is deactivated
   context.subscriptions.push(
     launchJsonWatcher,
-    packageJsonWatcher
+    packageJsonWatcher,
+    jetBrainsConfigWatcher
   );
 }
 

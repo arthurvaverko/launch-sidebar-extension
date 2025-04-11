@@ -66,5 +66,3 @@ jobs:
         
       - name: Publish to Visual Studio Marketplace
         run: npx @vscode/vsce publish -p ${{ secrets.VSCE_PAT }}
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}

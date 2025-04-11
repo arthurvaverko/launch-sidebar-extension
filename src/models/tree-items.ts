@@ -26,12 +26,12 @@ export class ScriptItem extends vscode.TreeItem {
 
 /**
  * Represents a section header in the tree view
- * Sections group items by type (launch configs or scripts) and workspace folder
+ * Sections group items by type (launch configs, scripts, or JetBrains configs) and workspace folder
  */
 export class SectionItem extends vscode.TreeItem {
   constructor(
     public readonly title: string,
-    public readonly sectionType: 'launch-configs' | 'scripts',
+    public readonly sectionType: 'launch-configs' | 'scripts' | 'jetbrains-configs',
     public readonly workspaceFolder?: vscode.WorkspaceFolder,
     public readonly packageJsonPath?: string
   ) {
