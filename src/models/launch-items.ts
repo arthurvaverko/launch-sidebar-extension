@@ -20,6 +20,12 @@ export class LaunchConfigurationItem extends vscode.TreeItem {
     this.contextValue = 'configuration';
     this.iconPath = new vscode.ThemeIcon('debug');
     
+    // Add accessibility data for better screen reader support and to increase line height
+    this.accessibilityInformation = {
+      label: `Debug configuration: ${name} (${type})`,
+      role: 'button'
+    };
+    
     // No command on the item itself - we'll use the play button instead
     // This allows clicking on the item to just select it
   }

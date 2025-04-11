@@ -21,6 +21,12 @@ export class ScriptItem extends vscode.TreeItem {
     
     // Assign appropriate colored icon based on script name
     this.iconPath = getScriptIcon(name);
+    
+    // Add accessibility data for better screen reader support and to increase line height
+    this.accessibilityInformation = {
+      label: `Script ${name}: ${script}`,
+      role: 'button'
+    };
   }
 }
 
@@ -38,6 +44,18 @@ export class SectionItem extends vscode.TreeItem {
     // Use uppercase for section headers to make them stand out
     super(title.toUpperCase(), vscode.TreeItemCollapsibleState.Expanded);
     this.contextValue = `section-${sectionType}`;
+    
+    // Add distinctive styling for section headers
+    this.tooltip = `${sectionType} in ${workspaceFolder?.name || 'workspace'}`;
+    
+    // Use theme colors for better integration with VS Code themes
+    this.iconPath = new vscode.ThemeIcon('list-tree');
+    
+    // Apply custom styling
+    this.description = '';  // Clear description for cleaner headers
+    
+    // This property adds a highlight/border to the item
+    this.resourceUri = workspaceFolder?.uri;  // This activates the decorationProvider capability
     
     // Use more prominent icons and formatting for sections
     if (sectionType === 'launch-configs') {

@@ -26,5 +26,11 @@ export class JetBrainsRunConfigItem extends vscode.TreeItem {
     } else {
       this.iconPath = new vscode.ThemeIcon('play', new vscode.ThemeColor('terminal.ansiGreen'));
     }
+    
+    // Add accessibility data for better screen reader support and to increase line height
+    this.accessibilityInformation = {
+      label: `JetBrains ${type} configuration: ${name}`,
+      role: 'button'
+    };
   }
 }
