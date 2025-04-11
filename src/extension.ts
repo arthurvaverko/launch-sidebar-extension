@@ -13,12 +13,56 @@ import { ScriptItem } from './models/tree-items';
 import { JetBrainsRunConfigItem } from './models/jetbrains-items';
 import { LaunchConfigurationProvider } from './providers/launch-configuration-provider';
 
+// Create a dedicated output channel for logging
+export const outputChannel = vscode.window.createOutputChannel('Launch Sidebar');
+
+/**
+ * Helper function for logging to the output channel and console
+ */
+export function log(message: string): void {
+  outputChannel.appendLine(message);
+}
+
+// Override console.log to redirect all output to our output channel
+const originalConsoleLog = console.log;
+console.log = function(...args: any[]) {
+  // Convert all arguments to strings and join them
+  const message = args.map(arg => {
+    if (typeof arg === 'object') {
+      try {
+        return JSON.stringify(arg);
+      } catch (e) {
+        return String(arg);
+      }
+    }
+    return String(arg);
+  }).join(' ');
+  
+  // Log to our output channel
+  outputChannel.appendLine(message);
+  
+  // Also log to the original console.log for development purposes
+  originalConsoleLog.apply(console, args);
+};
+
 /**
  * Activates the extension
  * Sets up the sidebar view, tree data provider, and command handlers
  */
 export function activate(context: vscode.ExtensionContext) {
-  console.log('Launch Sidebar extension is now active!');
+  // Show the output channel
+  outputChannel.show();
+  log('Launch Sidebar extension is now active!');
+
+  // Import and run the JetBrains test
+  import('./test-jetbrains.js').then(module => {
+    log('Running JetBrains configuration test...');
+    module.testJetBrainsSearch().catch(err => {
+      log(`Error running JetBrains test: ${err}`);
+    });
+  }).catch(err => {
+    log(`Error importing test module: ${err}`);
+  });
 
   // Create the tree data provider
   const launchConfigurationProvider = new LaunchConfigurationProvider();
@@ -163,13 +207,16 @@ function registerCommands(
   // Command: Run a JetBrains configuration
   const runJetBrainsConfigCommand = vscode.commands.registerCommand('launchConfigurations.runJetBrainsConfig', async (item: JetBrainsRunConfigItem) => {
     try {
-      // Get the directory containing the JetBrains run configuration
-      const projectDir = item.workspaceFolder.uri.fsPath;
+      // Determine the working directory to use
+      // Use the working directory from the configuration if available, otherwise use the workspace folder
+      const workingDir = item.workingDirectory || item.workspaceFolder.uri.fsPath;
+      
+      log(`Running JetBrains configuration: ${item.name} in working directory: ${workingDir}`);
       
       // Create a terminal for running the configuration
       const terminal = vscode.window.createTerminal({
         name: `JetBrains: ${item.name}`,
-        cwd: projectDir
+        cwd: workingDir
       });
       
       // Determine the command to run based on the configuration type

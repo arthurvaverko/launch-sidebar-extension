@@ -374,25 +374,54 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
    */
   private async hasJetBrainsRunConfigurations(folder: vscode.WorkspaceFolder): Promise<boolean> {
     try {
-      // Look for .run directory (case insensitive)
-      const items = fs.readdirSync(folder.uri.fsPath, { withFileTypes: true });
-      
-      // Find the .run directory (may be .Run, .RUN, etc.)
-      const runDirEntry = items.find(item => 
-        item.isDirectory() && item.name.toLowerCase() === '.run'
-      );
-      
-      if (!runDirEntry) {
-        return false;
+      // First, check for configurations in the .run directory
+      try {
+        // Look for .run directory (case insensitive)
+        const items = fs.readdirSync(folder.uri.fsPath, { withFileTypes: true });
+        
+        // Find the .run directory (may be .Run, .RUN, etc.)
+        const runDirEntry = items.find(item => 
+          item.isDirectory() && item.name.toLowerCase() === '.run'
+        );
+        
+        if (runDirEntry) {
+          const runDirPath = path.join(folder.uri.fsPath, runDirEntry.name);
+          
+          // Check if there are any XML files in the .run directory
+          const xmlFiles = fs.readdirSync(runDirPath, { withFileTypes: true })
+            .filter(file => file.isFile() && path.extname(file.name).toLowerCase() === '.xml');
+          
+          if (xmlFiles.length > 0) {
+            return true;
+          }
+        }
+      } catch (e) {
+        // Ignore errors while checking .run directory
       }
       
-      const runDirPath = path.join(folder.uri.fsPath, runDirEntry.name);
+      // Next, check for configurations in the .idea/runConfigurations directory
+      try {
+        // Look for .idea directory
+        const ideaDirPath = path.join(folder.uri.fsPath, '.idea');
+        if (fs.existsSync(ideaDirPath)) {
+          // Look for runConfigurations directory
+          const runConfigsDirPath = path.join(ideaDirPath, 'runConfigurations');
+          if (fs.existsSync(runConfigsDirPath)) {
+            // Check if there are any XML files in the .idea/runConfigurations directory
+            const xmlFiles = fs.readdirSync(runConfigsDirPath, { withFileTypes: true })
+              .filter(file => file.isFile() && path.extname(file.name).toLowerCase() === '.xml');
+            
+            if (xmlFiles.length > 0) {
+              return true;
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore errors while checking .idea directory
+      }
       
-      // Check if there are any XML files in the .run directory
-      const xmlFiles = fs.readdirSync(runDirPath, { withFileTypes: true })
-        .filter(file => file.isFile() && path.extname(file.name).toLowerCase() === '.xml');
-      
-      return xmlFiles.length > 0;
+      // No JetBrains configurations found in either location
+      return false;
     } catch (err) {
       console.error(`Error checking for JetBrains run configurations in ${folder.name}:`, err);
       return false;
@@ -421,7 +450,8 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
           config.xmlFilePath,
           folder,
           config.packagePath,
-          config.command
+          config.command,
+          config.workingDirectory
         ));
       }
     } catch (error) {
