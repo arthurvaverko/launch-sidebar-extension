@@ -1,10 +1,10 @@
 # Launch Sidebar
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/arthurvaverko/launch-sidebar-extension/releases)
+[![Version](https://img.shields.io/badge/version-0.0.2-blue)](https://github.com/arthurvaverko/launch-sidebar-extension/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Install-brightgreen)](https://marketplace.visualstudio.com/items?itemName=arthurvaverko.launch-sidebar)
 
-Launch Sidebar is a VS Code extension that provides a convenient way to manage and run both debug configurations and npm scripts from a dedicated sidebar. It offers one-click execution of tasks with intelligent package manager detection (npm, yarn, pnpm).
+Launch Sidebar is a VS Code extension that provides a convenient way to manage and run debug configurations, npm scripts, and JetBrains run configurations from a dedicated sidebar. It offers one-click execution of tasks with intelligent package manager detection (npm, yarn, pnpm) and support for JetBrains IDE run configuration files.
 
 ![Launch Sidebar Screenshot](resources/screenshot.png)
 
@@ -21,6 +21,12 @@ Launch Sidebar is a VS Code extension that provides a convenient way to manage a
 - 🎨 Color-coded icons for different script types
 - ▶️ One-click script execution with the correct package manager
 - 🛠️ Support for monorepos with nested package.json files
+
+### JetBrains Run Configurations
+- 🧠 Support for JetBrains IDE run configurations (.run/*.xml files)
+- 🔍 Automatic detection of configurations from GoLand, IntelliJ, WebStorm, etc.
+- ▶️ Run Go applications, tests, Node.js apps, and more directly from VS Code
+- 🛠️ Edit the XML configuration files with a single click
 
 ### User Experience
 - 🌟 Clean, organized sidebar with hierarchical sections
@@ -65,6 +71,7 @@ The extension provides visual distinctions for different script types:
 - Visual Studio Code 1.74.0 or higher
 - For debug configurations: At least one workspace folder with `.vscode/launch.json`
 - For npm scripts: At least one `package.json` file with scripts defined
+- For JetBrains configurations: A `.run` folder with XML configuration files
 
 ## Known Issues
 
@@ -86,23 +93,21 @@ This extension is licensed under the [MIT License](LICENSE).
 
 ## Release Notes
 
-### 1.0.0
+### 0.0.2
+
+- Added support for JetBrains run configurations (.run/*.xml files)
+- Added ability to run Go applications, tests, and other configurations from JetBrains IDEs
+- Fixed bug: Excluded node_modules directories when scanning for npm packages
+- Improved UI consistency for all configuration types
+- Added file watchers for JetBrains configuration files
+
+### 0.0.1
 
 - Initial release
 - Support for debug configurations and npm scripts
 - Smart package manager detection
 - Color-coded icons for different script types
 - Hierarchical organization of configurations
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
 
 ---
 

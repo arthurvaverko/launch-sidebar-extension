@@ -3,7 +3,7 @@
   "displayName": "Launch Sidebar",
   "description": "View and quickly launch debug configurations from a sidebar",
   "publisher": "arthurvaverko",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "repository": {
     "type": "git",
     "url": "https://github.com/arthurvaverko/launch-sidebar-extension.git"
