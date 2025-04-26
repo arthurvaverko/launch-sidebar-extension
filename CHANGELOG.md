@@ -4,6 +4,9 @@ All notable changes to the "launch-sidebar" extension will be documented in this
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.5] - 2024-04-11
+- Added support for JetBrains ShConfigurationType (shell scripts)
+
 ## [0.0.4] - 2024-04-11
 - Fixed compatibility with Cursor (VS Code 1.96.2)
 

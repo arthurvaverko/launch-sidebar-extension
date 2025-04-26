@@ -243,6 +243,18 @@ function registerCommands(
         command = `npx jest ${item.packagePath || ''}`;
       } else if (item.type.includes('ReactNative')) {
         command = `npx react-native start`;
+      } else if (item.type.includes('ShConfigurationType')) {
+        // Shell script configuration - simply run the script
+        // Extract script path from XML file if available
+        const scriptPath = item.packagePath || '';
+        
+        if (scriptPath) {
+          // Ensure script has execute permissions
+          command = `chmod +x ${scriptPath} && ${scriptPath}`;
+        } else {
+          // Default to running generic shell script in workspace
+          command = `sh`;
+        }
       } else {
         // For unknown configuration types, just open the XML file
         vscode.window.showInformationMessage(`Unknown configuration type: ${item.type}. Opening configuration file instead.`);

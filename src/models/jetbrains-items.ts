@@ -24,6 +24,8 @@ export class JetBrainsRunConfigItem extends vscode.TreeItem {
       this.iconPath = new vscode.ThemeIcon('beaker', new vscode.ThemeColor('testing.iconPassed'));
     } else if (type.includes('Application')) {
       this.iconPath = new vscode.ThemeIcon('play-circle', new vscode.ThemeColor('debugIcon.startForeground'));
+    } else if (type.includes('ShConfigurationType')) {
+      this.iconPath = new vscode.ThemeIcon('terminal', new vscode.ThemeColor('terminal.ansiGreen'));
     } else {
       this.iconPath = new vscode.ThemeIcon('play', new vscode.ThemeColor('terminal.ansiGreen'));
     }

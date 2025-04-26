@@ -3,7 +3,7 @@
   "displayName": "Launch Sidebar",
   "description": "View and quickly launch debug configurations from a sidebar",
   "publisher": "arthurvaverko",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "icon": "resources/logo-large.png",
   "repository": {
     "type": "git",

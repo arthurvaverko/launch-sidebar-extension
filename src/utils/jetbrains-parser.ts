@@ -185,6 +185,15 @@ export class JetBrainsRunConfigParser {
             log(`[JetBrains Parser] Found package path: ${packagePath}`);
           }
           
+          // Extract script path for shell scripts
+          if (type.includes('ShConfigurationType')) {
+            const scriptMatch = /<script value="([^"]+)"/i.exec(content);
+            if (scriptMatch) {
+              packagePath = scriptMatch[1].replace(/\$PROJECT_DIR\$/g, workspaceFolder.uri.fsPath);
+              log(`[JetBrains Parser] Found shell script path: ${packagePath}`);
+            }
+          }
+          
           // Extract command for some configurations
           let command;
           const commandMatch = /<go_parameters value="([^"]+)"/i.exec(content);
