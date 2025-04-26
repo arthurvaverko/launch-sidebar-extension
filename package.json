@@ -3,14 +3,14 @@
   "displayName": "Launch Sidebar",
   "description": "View and quickly launch debug configurations from a sidebar",
   "publisher": "arthurvaverko",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "icon": "resources/logo-large.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/arthurvaverko/launch-sidebar-extension.git"
   },
   "engines": {
-    "vscode": "^1.99.0"
+    "vscode": "^1.96.0"
   },
   "categories": [
     "Other",
@@ -130,7 +130,7 @@
     "build": "npm run lint && npm run compile && npm run test && npm run package"
   },
   "devDependencies": {
-    "@types/vscode": "^1.99.0",
+    "@types/vscode": "^1.96.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@typescript-eslint/eslint-plugin": "^8.28.0",
