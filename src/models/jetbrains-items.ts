@@ -40,4 +40,11 @@ export class JetBrainsRunConfigItem extends vscode.TreeItem {
       role: 'button'
     };
   }
+
+  /**
+   * Execute this JetBrains configuration
+   */
+  execute(): void {
+    vscode.commands.executeCommand('launchConfigurations.runJetBrainsConfig', this);
+  }
 }

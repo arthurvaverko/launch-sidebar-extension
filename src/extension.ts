@@ -46,47 +46,119 @@ console.log = function(...args: any[]) {
 };
 
 /**
+ * Terminal manager to track and reuse terminals
+ */
+class TerminalManager {
+  private terminals: Map<string, vscode.Terminal> = new Map();
+
+  /**
+   * Get or create a terminal for a specific task
+   * @param name The name of the terminal
+   * @param cwd The working directory for the terminal
+   * @returns A terminal instance (either existing or new)
+   */
+  public getOrCreateTerminal(name: string, cwd: string): vscode.Terminal {
+    // Create a unique key for this terminal based on name and working directory
+    const terminalKey = `${name}:${cwd}`;
+    
+    // Check if we already have this terminal
+    if (this.terminals.has(terminalKey)) {
+      const terminal = this.terminals.get(terminalKey);
+      
+      // Verify the terminal still exists (not closed by user)
+      if (terminal && this.isTerminalStillAlive(terminal)) {
+        log(`Reusing existing terminal: ${name}`);
+        return terminal;
+      }
+    }
+    
+    // Create a new terminal
+    log(`Creating new terminal: ${name} in ${cwd}`);
+    const terminal = vscode.window.createTerminal({
+      name,
+      cwd
+    });
+    
+    // Store it for future reuse
+    this.terminals.set(terminalKey, terminal);
+    
+    return terminal;
+  }
+  
+  /**
+   * Check if a terminal is still alive (not disposed)
+   */
+  private isTerminalStillAlive(terminal: vscode.Terminal): boolean {
+    // Get current terminals from vscode
+    const activeTerminals = vscode.window.terminals;
+    
+    // Check if our terminal is still in the list
+    return activeTerminals.includes(terminal);
+  }
+  
+  /**
+   * Remove disposed terminals from the tracking
+   */
+  public cleanupTerminals(): void {
+    // Create a new map with only the active terminals
+    const newMap = new Map<string, vscode.Terminal>();
+    
+    for (const [key, terminal] of this.terminals.entries()) {
+      if (this.isTerminalStillAlive(terminal)) {
+        newMap.set(key, terminal);
+      }
+    }
+    
+    this.terminals = newMap;
+  }
+}
+
+// Create a global terminal manager instance
+export const terminalManager = new TerminalManager();
+
+/**
  * Activates the extension
  * Sets up the sidebar view, tree data provider, and command handlers
  */
 export function activate(context: vscode.ExtensionContext) {
-  // Show the output channel
-  outputChannel.show();
-  log('Launch Sidebar extension is now active!');
+  log('Activating Launch Sidebar extension');
 
-  // Import and run the JetBrains test
-  import('./test-jetbrains.js').then(module => {
-    log('Running JetBrains configuration test...');
-    module.testJetBrainsSearch().catch(err => {
-      log(`Error running JetBrains test: ${err}`);
-    });
-  }).catch(err => {
-    log(`Error importing test module: ${err}`);
-  });
+  // Register terminal closed event to cleanup terminal references
+  context.subscriptions.push(
+    vscode.window.onDidCloseTerminal(() => {
+      terminalManager.cleanupTerminals();
+    })
+  );
 
-  // Create the tree data provider
-  const launchConfigurationProvider = new LaunchConfigurationProvider();
+  // Create tree data provider and register views
+  const launchProvider = new LaunchConfigurationProvider();
   
-  // Register the tree view with increased item height for better spacing
-  const treeView = vscode.window.createTreeView('launchConfigurations', {
-    treeDataProvider: launchConfigurationProvider,
-    showCollapseAll: false
-  });
-  
-  // Set tree view options for larger fonts and spacing
-  treeView.title = "📦 LAUNCH SIDEBAR";
+  // Register the view containers and tree views
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider('launchConfigurations', launchProvider),
+    vscode.commands.registerCommand('launch-sidebar.refreshScripts', () => {
+      launchProvider.refresh();
+    }),
+    vscode.commands.registerCommand('launch-sidebar.runScript', (script: ScriptItem | JetBrainsRunConfigItem | LaunchConfigurationItem) => {
+      script.execute();
+    })
+  );
 
-  // Add tree view to disposables to avoid memory leaks
-  context.subscriptions.push(treeView);
+  // Update tree when workspace folders change
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      launchProvider.refresh();
+    })
+  );
   
-  // Register all commands with descriptive comments
-  registerCommands(context, launchConfigurationProvider);
+  // Register all commands
+  registerCommands(context, launchProvider);
   
-  // Set up file watchers for automatic refresh
-  setupFileWatchers(context, launchConfigurationProvider);
+  // Setup file watchers
+  setupFileWatchers(context, launchProvider);
   
-  // Initial refresh to load configurations
-  launchConfigurationProvider.refresh();
+  // Initial refresh
+  launchProvider.refresh();
 }
 
 /**
@@ -159,10 +231,7 @@ function registerCommands(
       const packageManager = item.packageManager;
       
       // Create a terminal for running the script
-      const terminal = vscode.window.createTerminal({
-        name: `${packageManager}: ${item.name}`,
-        cwd: packageDir
-      });
+      const terminal = terminalManager.getOrCreateTerminal(`${packageManager}: ${item.name}`, packageDir);
       
       // Run the script using the appropriate package manager
       terminal.sendText(`${packageManager} run ${item.name}`);
@@ -211,10 +280,7 @@ function registerCommands(
       log(`Running JetBrains configuration: ${item.name} in working directory: ${workingDir}`);
       
       // Create a terminal for running the configuration
-      const terminal = vscode.window.createTerminal({
-        name: `JetBrains: ${item.name}`,
-        cwd: workingDir
-      });
+      const terminal = terminalManager.getOrCreateTerminal(`JetBrains: ${item.name}`, workingDir);
       
       // Determine the command to run based on the configuration type
       let command = '';
@@ -354,5 +420,8 @@ function setupFileWatchers(
  * Called when the extension is deactivated
  */
 export function deactivate() {
-  // Clean up resources when the extension is deactivated
+  log('Deactivating Launch Sidebar extension');
+  
+  // Clean up any terminals we're tracking
+  terminalManager.cleanupTerminals();
 }

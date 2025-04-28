@@ -28,4 +28,11 @@ export class ScriptItem extends vscode.TreeItem {
       role: 'button'
     };
   }
+
+  /**
+   * Execute this script
+   */
+  execute(): void {
+    vscode.commands.executeCommand('launchConfigurations.runScript', this);
+  }
 }

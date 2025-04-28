@@ -29,6 +29,13 @@ export class LaunchConfigurationItem extends vscode.TreeItem {
     // No command on the item itself - we'll use the play button instead
     // This allows clicking on the item to just select it
   }
+
+  /**
+   * Execute this launch configuration
+   */
+  execute(): void {
+    vscode.commands.executeCommand('launchConfigurations.launch', this);
+  }
 }
 
 /**
