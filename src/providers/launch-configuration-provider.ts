@@ -452,7 +452,11 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
           folder,
           config.packagePath,
           config.command,
-          config.workingDirectory
+          config.workingDirectory,
+          config.scriptText,
+          config.interpreter,
+          config.executeInTerminal,
+          config.executeScriptFile
         ));
       }
     } catch (error) {

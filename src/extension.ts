@@ -244,15 +244,47 @@ function registerCommands(
       } else if (item.type.includes('ReactNative')) {
         command = `npx react-native start`;
       } else if (item.type.includes('ShConfigurationType')) {
-        // Shell script configuration - simply run the script
-        // Extract script path from XML file if available
-        const scriptPath = item.packagePath || '';
+        // Shell script configuration - handle both inline scripts and script files
         
-        if (scriptPath) {
+        if (item.scriptText) {
+          // For inline script, create a temporary script file
+          log(`Running JetBrains inline shell script: ${item.name}`);
+          
+          // Create a temporary directory for the script if it doesn't exist
+          const tempDir = path.join(workingDir, '.vscode-temp');
+          if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+          }
+          
+          // Create a temp script file with the script text
+          const scriptFileName = `${item.name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.sh`;
+          const scriptFilePath = path.join(tempDir, scriptFileName);
+          
+          // Write the script to the file
+          fs.writeFileSync(scriptFilePath, item.scriptText);
+          
+          // Ensure script has execute permissions and run it
+          command = `chmod +x "${scriptFilePath}" && "${scriptFilePath}" ${item.cmdString || ''}`;
+          
+          // Add cleanup command to remove the temporary script file after execution
+          command += ` ; rm "${scriptFilePath}"`;
+        } else if (item.packagePath) {
+          // Execute an existing script file
+          log(`Running JetBrains shell script file: ${item.packagePath}`);
+          
+          // Use the specified interpreter or default to bash
+          const interpreter = item.interpreter || '/bin/bash';
+          
           // Ensure script has execute permissions
-          command = `chmod +x ${scriptPath} && ${scriptPath}`;
+          if (item.executeScriptFile) {
+            // Run the script file directly (making it executable first)
+            command = `chmod +x "${item.packagePath}" && "${item.packagePath}" ${item.cmdString || ''}`;
+          } else {
+            // Run through interpreter
+            command = `"${interpreter}" "${item.packagePath}" ${item.cmdString || ''}`;
+          }
         } else {
-          // Default to running generic shell script in workspace
+          // Default to running generic shell
           command = `sh`;
         }
       } else {

@@ -6,6 +6,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.0.5] - 2024-04-11
 - Added support for JetBrains ShConfigurationType (shell scripts)
+- Enhanced XML parsing for JetBrains configurations
+- Added support for inline shell scripts and script files
+- Added proper handling of script options and interpreter settings
 
 ## [0.0.4] - 2024-04-11
 - Fixed compatibility with Cursor (VS Code 1.96.2)
