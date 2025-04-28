@@ -8,6 +8,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Complete rewrite of JetBrains configuration parser using proper XML parsing
 - Robust support for ShConfigurationType configurations
 - Fixed handling of all shell script configuration options (inline scripts, script files, parameters)
+- Added support for .run.xml file extension format
+- Improved XML parsing with fallback options for different JetBrains configurations formats
 
 ## [0.0.5] - 2024-04-11
 - Added support for JetBrains ShConfigurationType (shell scripts)
