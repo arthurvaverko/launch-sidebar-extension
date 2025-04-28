@@ -247,27 +247,15 @@ function registerCommands(
         // Shell script configuration - handle both inline scripts and script files
         
         if (item.scriptText) {
-          // For inline script, create a temporary script file
+          // For inline script, run directly in terminal
           log(`Running JetBrains inline shell script: ${item.name}`);
           
-          // Create a temporary directory for the script if it doesn't exist
-          const tempDir = path.join(workingDir, '.vscode-temp');
-          if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir, { recursive: true });
-          }
+          // Use the specified interpreter or default to bash
+          const interpreter = item.interpreter || '/bin/bash';
           
-          // Create a temp script file with the script text
-          const scriptFileName = `${item.name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.sh`;
-          const scriptFilePath = path.join(tempDir, scriptFileName);
-          
-          // Write the script to the file
-          fs.writeFileSync(scriptFilePath, item.scriptText);
-          
-          // Ensure script has execute permissions and run it
-          command = `chmod +x "${scriptFilePath}" && "${scriptFilePath}" ${item.cmdString || ''}`;
-          
-          // Add cleanup command to remove the temporary script file after execution
-          command += ` ; rm "${scriptFilePath}"`;
+          // Run the script directly in the terminal
+          // The -c flag tells the shell to execute the command string that follows
+          command = `${interpreter} -c "${item.scriptText.replace(/"/g, '\\"')}"`;
         } else if (item.packagePath) {
           // Execute an existing script file
           log(`Running JetBrains shell script file: ${item.packagePath}`);

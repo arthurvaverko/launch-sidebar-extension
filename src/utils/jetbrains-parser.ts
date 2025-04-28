@@ -26,18 +26,15 @@ export interface JetBrainsRunConfig {
  * for JetBrains IDEs like IntelliJ, WebStorm, GoLand, etc.
  */
 export class JetBrainsRunConfigParser {
-  // XML parser instance
+  // XML parser instance with different options to better handle JetBrains 2023+ format
   private static parser = new XMLParser({
     ignoreAttributes: false,
-    attributeNamePrefix: '_',
-    preserveOrder: true,
-  });
-
-  // Alternate parser with different settings in case the first one fails
-  private static altParser = new XMLParser({
-    ignoreAttributes: false,
-    attributeNamePrefix: '_',
-    preserveOrder: false,
+    attributeNamePrefix: '',
+    isArray: (name, jpath, isLeafNode, isAttribute) => {
+      if (name === 'component' || name === 'configuration' || name === 'option') return true;
+      return false;
+    },
+    parseAttributeValue: true
   });
 
   /**
@@ -166,87 +163,59 @@ export class JetBrainsRunConfigParser {
         log(`[JetBrains Parser] File content length: ${content.length} bytes`);
         
         try {
-          // Parse the XML content
+          // Parse the XML content with our configured parser
           const parsedXml = this.parser.parse(content);
           
-          // Add more debugging to understand the structure
-          log(`[JetBrains Parser] Parsed XML structure: ${JSON.stringify(parsedXml).substring(0, 100)}...`);
+          // Debug output of the parsed structure
+          log(`[JetBrains Parser] Parsed XML structure: ${JSON.stringify(parsedXml).substring(0, 200)}...`);
           
-          // Find the configuration element
-          let configElement = null;
-          
-          // Search for the component and configuration elements
-          if (Array.isArray(parsedXml)) {
-            for (const item of parsedXml) {
-              if (item?.component && Array.isArray(item.component)) {
-                for (const comp of item.component) {
-                  if (comp?.configuration && Array.isArray(comp.configuration)) {
-                    configElement = comp.configuration[0];
-                    break;
+          // The structure for JetBrains 2023+ files should be:
+          // { component: [{ configuration: [{ name, type, ... }] }] }
+          if (parsedXml.component && parsedXml.component.length > 0) {
+            for (const component of parsedXml.component) {
+              if (component.configuration && component.configuration.length > 0) {
+                for (const config of component.configuration) {
+                  // Get the required attributes
+                  const name = config.name;
+                  const type = config.type;
+                  
+                  if (!name || !type) {
+                    log(`[JetBrains Parser] Missing name or type in configuration`);
+                    continue;
                   }
+                  
+                  log(`[JetBrains Parser] Found configuration: ${name} (${type})`);
+                  
+                  // Create base configuration
+                  const runConfig: JetBrainsRunConfig = {
+                    name,
+                    type,
+                    xmlFilePath: xmlFile
+                  };
+                  
+                  // Process configuration based on type
+                  if (type === 'ShConfigurationType') {
+                    this.processShellConfiguration(config, runConfig, workspaceFolder);
+                  } else if (type === 'GoApplicationRunConfiguration' || type.includes('GoApplication')) {
+                    this.processGoConfiguration(config, runConfig, workspaceFolder);
+                  } else if (type === 'GoTestRunConfiguration' || type.includes('GoTest')) {
+                    this.processGoTestConfiguration(config, runConfig, workspaceFolder);
+                  } else {
+                    // Process general configuration
+                    this.processGeneralConfiguration(config, runConfig, workspaceFolder);
+                  }
+                  
+                  // Add to the list of configs
+                  runConfigs.push(runConfig);
+                  log(`[JetBrains Parser] Added configuration to list: ${name}`);
                 }
+              } else {
+                log(`[JetBrains Parser] No configuration element found in component`);
               }
             }
-          }
-          
-          if (!configElement) {
-            log(`[JetBrains Parser] No configuration element found with primary parser, trying alternate approach...`);
-            // Try alternate parsing approach
-            const altParsedXml = this.altParser.parse(content);
-            
-            // Debugging for alternate parser
-            log(`[JetBrains Parser] Alternate parsed structure: ${JSON.stringify(altParsedXml).substring(0, 100)}...`);
-            
-            // Look for configuration in alternate format
-            if (altParsedXml?.component?.configuration) {
-              configElement = altParsedXml.component.configuration;
-              log(`[JetBrains Parser] Found configuration with alternate parser`);
-            } else {
-              log(`[JetBrains Parser] No configuration element found in ${xmlFile}`);
-              continue;
-            }
-          }
-          
-          // Extract attributes from the configuration
-          // JetBrains 2023+ format has _default='false' attribute
-          const configAttrs = configElement?._default === 'false' || configElement?._name ? configElement : null;
-          
-          if (!configAttrs) {
-            log(`[JetBrains Parser] No valid configuration attributes found in ${xmlFile}, attributes: ${JSON.stringify(configElement)}`);
-            continue;
-          }
-          
-          // Get basic properties
-          const name = configAttrs._name;
-          const type = configAttrs._type;
-          
-          if (!name || !type) {
-            log(`[JetBrains Parser] Missing name or type in configuration from ${xmlFile}, attrs: ${JSON.stringify(configAttrs)}`);
-            continue;
-          }
-          
-          log(`[JetBrains Parser] Found configuration: ${name} (${type})`);
-          
-          // Create base configuration object
-          const runConfig: JetBrainsRunConfig = {
-            name,
-            type,
-            xmlFilePath: xmlFile
-          };
-          
-          // Process configuration based on type
-          if (type.includes('GoApplicationRunConfiguration')) {
-            this.processGoConfiguration(configElement, runConfig, workspaceFolder);
-          } else if (type.includes('ShConfigurationType')) {
-            this.processShellConfiguration(configElement, runConfig, workspaceFolder);
           } else {
-            // Process general configuration properties
-            this.processGeneralConfiguration(configElement, runConfig, workspaceFolder);
+            log(`[JetBrains Parser] No component element found in ${xmlFile}`);
           }
-          
-          // Add the configuration to the list
-          runConfigs.push(runConfig);
-          log(`[JetBrains Parser] Added configuration to list: ${name}`);
         } catch (parseErr) {
           log(`[JetBrains Parser] Error parsing XML: ${parseErr}`);
         }
@@ -264,47 +233,24 @@ export class JetBrainsRunConfigParser {
     runConfig: JetBrainsRunConfig, 
     workspaceFolder: vscode.WorkspaceFolder
   ): void {
-    // Handle non-array format (from alternate parser)
-    if (!Array.isArray(configElement)) {
-      if (configElement.package && configElement.package._value) {
-        runConfig.packagePath = configElement.package._value;
-        log(`[JetBrains Parser] Found package path: ${runConfig.packagePath}`);
-      }
-      
-      if (configElement.working_directory && configElement.working_directory._value) {
-        runConfig.workingDirectory = configElement.working_directory._value.replace(/\$PROJECT_DIR\$/g, workspaceFolder.uri.fsPath);
-        log(`[JetBrains Parser] Found working directory: ${runConfig.workingDirectory}`);
-      }
-      
-      if (configElement.go_parameters && configElement.go_parameters._value) {
-        runConfig.command = configElement.go_parameters._value;
-        log(`[JetBrains Parser] Found command: ${runConfig.command}`);
-      }
-      
-      return;
+    log(`[JetBrains Parser] Processing Go configuration: ${JSON.stringify(configElement).substring(0, 200)}...`);
+    
+    // Extract package path
+    if (configElement.package && configElement.package.value) {
+      runConfig.packagePath = configElement.package.value;
+      log(`[JetBrains Parser] Found package path: ${runConfig.packagePath}`);
     }
     
-    // Handle array format (from primary parser)
-    if (Array.isArray(configElement)) {
-      // Look for package element
-      for (const element of configElement) {
-        if (element?.package && element.package[0]?._value) {
-          runConfig.packagePath = element.package[0]._value;
-          log(`[JetBrains Parser] Found package path: ${runConfig.packagePath}`);
-        }
-        
-        // Look for working directory
-        if (element?.working_directory && element.working_directory[0]?._value) {
-          runConfig.workingDirectory = element.working_directory[0]._value.replace(/\$PROJECT_DIR\$/g, workspaceFolder.uri.fsPath);
-          log(`[JetBrains Parser] Found working directory: ${runConfig.workingDirectory}`);
-        }
-        
-        // Look for command parameters
-        if (element?.go_parameters && element.go_parameters[0]?._value) {
-          runConfig.command = element.go_parameters[0]._value;
-          log(`[JetBrains Parser] Found command: ${runConfig.command}`);
-        }
-      }
+    // Extract working directory
+    if (configElement.working_directory && configElement.working_directory.value) {
+      runConfig.workingDirectory = configElement.working_directory.value.replace(/\$PROJECT_DIR\$/g, workspaceFolder.uri.fsPath);
+      log(`[JetBrains Parser] Found working directory: ${runConfig.workingDirectory}`);
+    }
+    
+    // Extract go parameters (command line arguments)
+    if (configElement.go_parameters && configElement.go_parameters.value) {
+      runConfig.command = configElement.go_parameters.value;
+      log(`[JetBrains Parser] Found go parameters: ${runConfig.command}`);
     }
   }
   
@@ -316,82 +262,60 @@ export class JetBrainsRunConfigParser {
     runConfig: JetBrainsRunConfig, 
     workspaceFolder: vscode.WorkspaceFolder
   ): void {
-    // For direct element structure (from alternate parser)
-    if (!Array.isArray(configElement) && configElement.option) {
-      const options = Array.isArray(configElement.option) ? configElement.option : [configElement.option];
-      
-      for (const option of options) {
-        this.processShellOption(option, runConfig, workspaceFolder);
-      }
-      return;
-    }
+    log(`[JetBrains Parser] Processing shell configuration: ${JSON.stringify(configElement).substring(0, 200)}...`);
     
-    // For array structure (from primary parser)
-    if (Array.isArray(configElement)) {
-      // Process all option elements
-      for (const element of configElement) {
-        if (element?.option) {
-          const options = Array.isArray(element.option) ? element.option : [element.option];
-          
-          for (const option of options) {
-            this.processShellOption(option, runConfig, workspaceFolder);
-          }
+    // Set default interpreter
+    runConfig.interpreter = '/bin/bash';
+    
+    // Process all option elements
+    if (configElement.option && configElement.option.length > 0) {
+      for (const option of configElement.option) {
+        const name = option.name;
+        const value = option.value;
+        
+        if (!name || value === undefined) continue;
+        
+        // Extract script text (inline script)
+        if (name === 'SCRIPT_TEXT') {
+          runConfig.scriptText = value;
+          log(`[JetBrains Parser] Found script text: ${runConfig.scriptText?.substring(0, 50) || ''}...`);
+        }
+        
+        // Extract script path (file script)
+        if (name === 'SCRIPT_PATH' && value) {
+          runConfig.packagePath = value.replace(/\$PROJECT_DIR\$/g, workspaceFolder.uri.fsPath);
+          log(`[JetBrains Parser] Found script path: ${runConfig.packagePath}`);
+        }
+        
+        // Extract working directory
+        if (name === 'SCRIPT_WORKING_DIRECTORY' && value) {
+          runConfig.workingDirectory = value.replace(/\$PROJECT_DIR\$/g, workspaceFolder.uri.fsPath);
+          log(`[JetBrains Parser] Found working directory: ${runConfig.workingDirectory}`);
+        }
+        
+        // Extract interpreter path
+        if (name === 'INTERPRETER_PATH' && value) {
+          runConfig.interpreter = value;
+          log(`[JetBrains Parser] Found interpreter: ${runConfig.interpreter}`);
+        }
+        
+        // Extract execution flags
+        if (name === 'EXECUTE_IN_TERMINAL') {
+          runConfig.executeInTerminal = value === 'true';
+          log(`[JetBrains Parser] Execute in terminal: ${runConfig.executeInTerminal}`);
+        }
+        
+        if (name === 'EXECUTE_SCRIPT_FILE') {
+          runConfig.executeScriptFile = value === 'true';
+          log(`[JetBrains Parser] Execute script file: ${runConfig.executeScriptFile}`);
+        }
+        
+        // Extract script options/arguments
+        if (name === 'SCRIPT_OPTIONS' && value) {
+          runConfig.command = value;
+          log(`[JetBrains Parser] Found script options: ${runConfig.command}`);
         }
       }
-    }
-  }
-  
-  /**
-   * Process a shell script option
-   */
-  private static processShellOption(
-    option: any,
-    runConfig: JetBrainsRunConfig,
-    workspaceFolder: vscode.WorkspaceFolder
-  ): void {
-    // Handle direct object with _name and _value
-    const name = option?._name || '';
-    const value = option?._value || '';
-    
-    // Extract script text (inline script)
-    if (name === 'SCRIPT_TEXT' && value) {
-      runConfig.scriptText = value;
-      log(`[JetBrains Parser] Found script text: ${runConfig.scriptText?.substring(0, 50) || ''}...`);
-    }
-    
-    // Extract script path (file script)
-    if (name === 'SCRIPT_PATH' && value) {
-      runConfig.packagePath = value.replace(/\$PROJECT_DIR\$/g, workspaceFolder.uri.fsPath);
-      log(`[JetBrains Parser] Found script path: ${runConfig.packagePath}`);
-    }
-    
-    // Extract working directory
-    if (name === 'SCRIPT_WORKING_DIRECTORY' && value) {
-      runConfig.workingDirectory = value.replace(/\$PROJECT_DIR\$/g, workspaceFolder.uri.fsPath);
-      log(`[JetBrains Parser] Found working directory: ${runConfig.workingDirectory}`);
-    }
-    
-    // Extract interpreter path
-    if (name === 'INTERPRETER_PATH' && value) {
-      runConfig.interpreter = value;
-      log(`[JetBrains Parser] Found interpreter: ${runConfig.interpreter}`);
-    }
-    
-    // Extract execution flags
-    if (name === 'EXECUTE_IN_TERMINAL' && value) {
-      runConfig.executeInTerminal = value.toLowerCase() === 'true';
-      log(`[JetBrains Parser] Execute in terminal: ${runConfig.executeInTerminal}`);
-    }
-    
-    if (name === 'EXECUTE_SCRIPT_FILE' && value) {
-      runConfig.executeScriptFile = value.toLowerCase() === 'true';
-      log(`[JetBrains Parser] Execute script file: ${runConfig.executeScriptFile}`);
-    }
-    
-    // Extract script options/arguments
-    if (name === 'SCRIPT_OPTIONS' && value) {
-      runConfig.command = value;
-      log(`[JetBrains Parser] Found script options: ${runConfig.command}`);
     }
   }
   
@@ -403,24 +327,61 @@ export class JetBrainsRunConfigParser {
     runConfig: JetBrainsRunConfig, 
     workspaceFolder: vscode.WorkspaceFolder
   ): void {
-    // Handle non-array format (from alternate parser)
-    if (!Array.isArray(configElement)) {
-      if (configElement.working_directory && configElement.working_directory._value) {
-        runConfig.workingDirectory = configElement.working_directory._value.replace(/\$PROJECT_DIR\$/g, workspaceFolder.uri.fsPath);
-        log(`[JetBrains Parser] Found working directory: ${runConfig.workingDirectory}`);
-      }
-      return;
+    log(`[JetBrains Parser] Processing general configuration: ${JSON.stringify(configElement).substring(0, 200)}...`);
+    
+    // Extract working directory
+    if (configElement.working_directory && configElement.working_directory.value) {
+      runConfig.workingDirectory = configElement.working_directory.value.replace(/\$PROJECT_DIR\$/g, workspaceFolder.uri.fsPath);
+      log(`[JetBrains Parser] Found working directory: ${runConfig.workingDirectory}`);
     }
     
-    // Handle array format (from primary parser)
-    if (Array.isArray(configElement)) {
-      // Look for working directory
-      for (const element of configElement) {
-        if (element?.working_directory && element.working_directory[0]?._value) {
-          runConfig.workingDirectory = element.working_directory[0]._value.replace(/\$PROJECT_DIR\$/g, workspaceFolder.uri.fsPath);
-          log(`[JetBrains Parser] Found working directory: ${runConfig.workingDirectory}`);
-        }
-      }
+    // Extract module-specific data
+    if (configElement.module) {
+      log(`[JetBrains Parser] Found module: ${JSON.stringify(configElement.module)}`);
+    }
+    
+    // For compound configurations
+    if (configElement.toRun) {
+      log(`[JetBrains Parser] Found compound configuration: ${JSON.stringify(configElement.toRun)}`);
+    }
+  }
+
+  /**
+   * Process a Go test configuration
+   */
+  private static processGoTestConfiguration(
+    configElement: any, 
+    runConfig: JetBrainsRunConfig, 
+    workspaceFolder: vscode.WorkspaceFolder
+  ): void {
+    log(`[JetBrains Parser] Processing Go test configuration: ${JSON.stringify(configElement).substring(0, 200)}...`);
+    
+    // Extract package path
+    if (configElement.package && configElement.package.value) {
+      runConfig.packagePath = configElement.package.value;
+      log(`[JetBrains Parser] Found package path: ${runConfig.packagePath}`);
+    }
+    
+    // Extract working directory
+    if (configElement.working_directory && configElement.working_directory.value) {
+      runConfig.workingDirectory = configElement.working_directory.value.replace(/\$PROJECT_DIR\$/g, workspaceFolder.uri.fsPath);
+      log(`[JetBrains Parser] Found working directory: ${runConfig.workingDirectory}`);
+    }
+    
+    // Extract go parameters (command line arguments)
+    if (configElement.go_parameters && configElement.go_parameters.value) {
+      runConfig.command = configElement.go_parameters.value;
+      log(`[JetBrains Parser] Found go parameters: ${runConfig.command}`);
+    }
+    
+    // Extract test kind (package, directory, file)
+    if (configElement.kind && configElement.kind.value) {
+      log(`[JetBrains Parser] Found test kind: ${configElement.kind.value}`);
+    }
+    
+    // Extract test framework (gotest, etc.)
+    if (configElement.framework && configElement.framework.value) {
+      log(`[JetBrains Parser] Found test framework: ${configElement.framework.value}`);
     }
   }
 }
