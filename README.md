@@ -28,8 +28,16 @@ Launch Sidebar is a VS Code extension that provides a convenient way to manage a
 - ▶️ Run Go applications, tests, Node.js apps, and more directly from VS Code
 - 🛠️ Edit the XML configuration files with a single click
 
+### Makefile Tasks
+- 🛠️ Detects Makefile in each workspace folder
+- 📋 Lists all Makefile targets as runnable tasks in the sidebar
+- ▶️ One-click run with `make <target>` in the correct directory
+- 🎨 Contextual icons for each Makefile task (build, test, clean, etc.)
+- 📝 Edit Makefile at the target definition with a single click
+
 ### User Experience
 - 🌟 Clean, organized sidebar with hierarchical sections
+- 🖼️ Section headers use custom icons: NPM, JetBrains, Makefile (GNU), and VS Code for debug configs
 - 🔠 Alphabetical sorting for easy navigation
 - 🔄 Refresh button to manually update configurations and scripts
 - 🖱️ Separation of selection and execution actions
@@ -53,7 +61,7 @@ The extension automatically determines the appropriate package manager for your 
 
 ## Customization
 
-The extension provides visual distinctions for different script types:
+The extension provides visual distinctions for different script and Makefile task types:
 
 - 🧪 **Test scripts** (test, e2e, spec): Purple beaker icon
 - 📦 **Build scripts** (build, compile): Orange package icon

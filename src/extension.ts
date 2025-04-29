@@ -14,6 +14,7 @@ import { JetBrainsRunConfigItem } from './models/jetbrains-items';
 import { LaunchConfigurationProvider } from './providers/launch-configuration-provider';
 import { RecentItemsManager, LaunchItem } from './models/recent-items';
 import { RecentItemWrapper } from './models/recent-items-section';
+import { MakefileTaskItem } from './models/makefile-task-item';
 
 // Create a dedicated output channel for logging
 export const outputChannel = vscode.window.createOutputChannel('Launch Sidebar');
@@ -489,6 +490,41 @@ function registerCommands(
     vscode.window.showInformationMessage('Recent items list cleared');
   });
   
+  // Command: Run a Makefile task
+  const runMakefileTaskCommand = vscode.commands.registerCommand('launchConfigurations.runMakefileTask', async (item: MakefileTaskItem) => {
+    try {
+      const makefileDir = path.dirname(item.makefilePath);
+      const terminal = terminalManager.getOrCreateTerminal(`make: ${item.name}`, makefileDir);
+      terminal.sendText(`make ${item.name}`);
+      terminal.show();
+      // Add to recent items
+      recentItemsManager.addRecentItem(item);
+      launchConfigurationProvider.refresh();
+      vscode.window.showInformationMessage(`Running make task: ${item.name}`);
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to run make task: ${error}`);
+    }
+  });
+
+  // Command: Edit a Makefile task
+  const editMakefileTaskCommand = vscode.commands.registerCommand('launchConfigurations.editMakefileTask', async (item: MakefileTaskItem) => {
+    try {
+      const document = await vscode.workspace.openTextDocument(vscode.Uri.file(item.makefilePath));
+      const editor = await vscode.window.showTextDocument(document);
+      // Try to find the target line
+      const text = document.getText();
+      const targetRegex = new RegExp(`^${item.name}:`, 'm');
+      const match = targetRegex.exec(text);
+      if (match) {
+        const position = document.positionAt(match.index);
+        editor.selection = new vscode.Selection(position, position);
+        editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to open Makefile for editing: ${error}`);
+    }
+  });
+  
   // Register all commands
   context.subscriptions.push(
     refreshCommand,
@@ -498,7 +534,9 @@ function registerCommands(
     editScriptCommand,
     runJetBrainsConfigCommand,
     editJetBrainsConfigCommand,
-    clearRecentItemsCommand
+    clearRecentItemsCommand,
+    runMakefileTaskCommand,
+    editMakefileTaskCommand
   );
 }
 
@@ -527,11 +565,18 @@ function setupFileWatchers(
   jetBrainsConfigWatcher.onDidCreate(() => launchConfigurationProvider.refresh());
   jetBrainsConfigWatcher.onDidDelete(() => launchConfigurationProvider.refresh());
   
+  // Watch for changes to Makefile files (for Makefile tasks)
+  const makefileWatcher = vscode.workspace.createFileSystemWatcher('**/Makefile');
+  makefileWatcher.onDidChange(() => launchConfigurationProvider.refresh());
+  makefileWatcher.onDidCreate(() => launchConfigurationProvider.refresh());
+  makefileWatcher.onDidDelete(() => launchConfigurationProvider.refresh());
+  
   // Register the watchers for disposal when the extension is deactivated
   context.subscriptions.push(
     launchJsonWatcher,
     packageJsonWatcher,
-    jetBrainsConfigWatcher
+    jetBrainsConfigWatcher,
+    makefileWatcher
   );
 }
 

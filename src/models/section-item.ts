@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { logDebug, logInfo } from '../extension';
 
 export enum SectionType {
@@ -6,6 +7,7 @@ export enum SectionType {
     SCRIPTS = 'scripts',
     RECENT = 'recent',
     JETBRAINS_CONFIGS = 'jetbrains-configs',
+    MAKEFILE_TASKS = 'makefile-tasks',
 }
 
 /**
@@ -29,15 +31,21 @@ export class SectionItem extends vscode.TreeItem {
     public readonly packageJsonPath?: string;
 
     /**
+     * Makefile path (for Makefile tasks sections)
+     */
+    public readonly makefilePath?: string;
+
+    /**
      * Constructor
      */
-    constructor(title: string, sectionType: SectionType, workspaceFolder?: vscode.WorkspaceFolder, packageJsonPath?: string) {
+    constructor(title: string, sectionType: SectionType, workspaceFolder?: vscode.WorkspaceFolder, packageJsonPath?: string, makefilePath?: string) {
         super(title, vscode.TreeItemCollapsibleState.Expanded);
         logInfo(`Creating section: ${title} (${sectionType}${workspaceFolder ? ` in ${workspaceFolder.name}` : ''})`);
         
         this.sectionType = sectionType;
         this.workspaceFolder = workspaceFolder;
         this.packageJsonPath = packageJsonPath;
+        this.makefilePath = makefilePath;
 
         // Set context value to apply distinctive styling for section headers
         this.contextValue = 'section';
@@ -48,7 +56,34 @@ export class SectionItem extends vscode.TreeItem {
         }
         
         // Set theme colors and icons for the section
-        this.iconPath = new vscode.ThemeIcon('folder', new vscode.ThemeColor('launch-sidebar.sectionIcon'));
+        switch (sectionType) {
+            case SectionType.SCRIPTS:
+                this.iconPath = {
+                    light: vscode.Uri.file(path.join(__dirname, '../../resources/config-npm.svg')),
+                    dark: vscode.Uri.file(path.join(__dirname, '../../resources/config-npm.svg'))
+                };
+                break;
+            case SectionType.JETBRAINS_CONFIGS:
+                this.iconPath = {
+                    light: vscode.Uri.file(path.join(__dirname, '../../resources/config-jetbrains.svg')),
+                    dark: vscode.Uri.file(path.join(__dirname, '../../resources/config-jetbrains.svg'))
+                };
+                break;
+            case SectionType.MAKEFILE_TASKS:
+                this.iconPath = {
+                    light: vscode.Uri.file(path.join(__dirname, '../../resources/config-makefile.svg')),
+                    dark: vscode.Uri.file(path.join(__dirname, '../../resources/config-makefile.svg'))
+                };
+                break;
+            case SectionType.LAUNCH_CONFIGURATIONS:
+                this.iconPath = {
+                    light: vscode.Uri.file(path.join(__dirname, '../../resources/config-vscode.svg')),
+                    dark: vscode.Uri.file(path.join(__dirname, '../../resources/config-vscode.svg'))
+                };
+                break;
+            default:
+                this.iconPath = new vscode.ThemeIcon('folder', new vscode.ThemeColor('launch-sidebar.sectionIcon'));
+        }
         
         // Apply tooltip with more information
         this.tooltip = workspaceFolder 

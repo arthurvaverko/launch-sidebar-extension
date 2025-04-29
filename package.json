@@ -3,7 +3,7 @@
   "displayName": "Launch Sidebar",
   "description": "View and quickly launch debug configurations from a sidebar",
   "publisher": "arthurvaverko",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "icon": "resources/logo-large.png",
   "repository": {
     "type": "git",
@@ -84,6 +84,16 @@
         "command": "launch-sidebar.removeRecentItem",
         "title": "Remove from Recent Items",
         "icon": "$(trash)"
+      },
+      {
+        "command": "launchConfigurations.runMakefileTask",
+        "title": "Run Makefile Task",
+        "icon": "$(play)"
+      },
+      {
+        "command": "launchConfigurations.editMakefileTask",
+        "title": "Edit Makefile Task",
+        "icon": "$(edit)"
       }
     ],
     "menus": {
@@ -133,6 +143,16 @@
         {
           "command": "launch-sidebar.removeRecentItem",
           "when": "view == launchConfigurations && viewItem =~ /recent-item/",
+          "group": "inline"
+        },
+        {
+          "command": "launchConfigurations.runMakefileTask",
+          "when": "view == launchConfigurations && viewItem == makefile-task",
+          "group": "inline"
+        },
+        {
+          "command": "launchConfigurations.editMakefileTask",
+          "when": "view == launchConfigurations && viewItem == makefile-task",
           "group": "inline"
         }
       ]

@@ -39,3 +39,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Changed
 - Bumped extension version to 0.0.8.
+
+## [0.0.9] - 2024-04-14
+### Added
+- Makefile tasks provider: scan Makefile, show targets in sidebar, run with `make <target>`
+- Makefile tasks get contextual icons based on target name (build, test, clean, etc.)
+- Section headers now use custom icons: NPM, JetBrains, Makefile (GNU), and VS Code for debug configs
+- Run action for Makefile tasks uses the play icon, matching other run actions
+
+### Fixed
+- Section icon assignment now uses `vscode.Uri.file` to avoid type errors

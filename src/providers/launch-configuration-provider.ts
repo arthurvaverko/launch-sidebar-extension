@@ -11,9 +11,10 @@ import { RecentItemsSection, RecentItemWrapper } from '../models/recent-items-se
 import { RecentItemsManager } from '../models/recent-items';
 import { detectPackageManager, detectRootPackageManager, PackageManager } from '../utils/package-manager';
 import { JetBrainsRunConfigParser } from '../utils/jetbrains-parser';
+import { MakefileTaskItem } from '../models/makefile-task-item';
 
 // Union type for our tree items
-export type LaunchTreeItem = LaunchConfigurationItem | LaunchConfigurationErrorItem | ScriptItem | SectionItem | JetBrainsRunConfigItem | RecentItemsSection | RecentItemWrapper;
+export type LaunchTreeItem = LaunchConfigurationItem | LaunchConfigurationErrorItem | ScriptItem | SectionItem | JetBrainsRunConfigItem | RecentItemsSection | RecentItemWrapper | MakefileTaskItem;
 
 /**
  * Tree data provider for the Launch Sidebar extension
@@ -64,6 +65,8 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
         return this.getPackageScripts(element.packageJsonPath, element.workspaceFolder);
       } else if (element.sectionType === SectionType.JETBRAINS_CONFIGS && element.workspaceFolder) {
         return this.getJetBrainsConfigurations(element.workspaceFolder);
+      } else if (element.sectionType === SectionType.MAKEFILE_TASKS && element.makefilePath && element.workspaceFolder) {
+        return this.getMakefileTasks(element.makefilePath, element.workspaceFolder);
       }
       return [];
     }
@@ -136,6 +139,18 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
           `${path.basename(folder.uri.fsPath)}`,
           SectionType.JETBRAINS_CONFIGS,
           folder
+        ));
+      }
+
+      // Add Makefile tasks section if a Makefile exists
+      const makefilePath = path.join(folder.uri.fsPath, 'Makefile');
+      if (fs.existsSync(makefilePath)) {
+        sections.push(new SectionItem(
+          `${path.basename(folder.uri.fsPath)}`,
+          SectionType.MAKEFILE_TASKS,
+          folder,
+          undefined,
+          makefilePath
         ));
       }
 
@@ -494,6 +509,41 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
       console.error(`Error reading JetBrains run configurations from ${folder.name}:`, error);
     }
     
+    return items;
+  }
+
+  /**
+   * Get Makefile tasks from a Makefile
+   */
+  private async getMakefileTasks(makefilePath: string, folder: vscode.WorkspaceFolder): Promise<LaunchTreeItem[]> {
+    const items: LaunchTreeItem[] = [];
+    try {
+      if (fs.existsSync(makefilePath)) {
+        const makefileContent = fs.readFileSync(makefilePath, 'utf8');
+        // Regex to match targets: lines like 'target: ...' not starting with whitespace or '#'
+        const targetRegex = /^(?![ \t#])([a-zA-Z0-9_\-]+):([^=\n]*)/gm;
+        let match;
+        while ((match = targetRegex.exec(makefileContent)) !== null) {
+          const name = match[1];
+          // Find the recipe (lines after the target, indented)
+          const recipeLines: string[] = [];
+          let nextLineIdx = match.index + match[0].length;
+          let nextLineMatch;
+          const lines = makefileContent.slice(nextLineIdx).split('\n');
+          for (const line of lines) {
+            if (/^\s+/.test(line) && !/^\s*#/.test(line)) {
+              recipeLines.push(line.trim());
+            } else {
+              break;
+            }
+          }
+          const recipe = recipeLines.join('\n');
+          items.push(new MakefileTaskItem(name, makefilePath, folder, recipe));
+        }
+      }
+    } catch (error) {
+      console.error(`Error reading Makefile tasks from ${makefilePath}:`, error);
+    }
     return items;
   }
 }

@@ -2,12 +2,13 @@ import * as vscode from 'vscode';
 import { LaunchConfigurationItem } from './launch-items';
 import { ScriptItem } from './script-item';
 import { JetBrainsRunConfigItem } from './jetbrains-items';
+import { MakefileTaskItem } from './makefile-task-item';
 import { logDebug, logInfo, logWarning, logError } from '../extension';
 
 /**
  * Type alias for the different types of items that can be in the recent items list
  */
-export type LaunchItem = LaunchConfigurationItem | ScriptItem | JetBrainsRunConfigItem;
+export type LaunchItem = LaunchConfigurationItem | ScriptItem | JetBrainsRunConfigItem | MakefileTaskItem;
 
 /**
  * Maximum number of recent items to keep track of
@@ -25,7 +26,7 @@ const RECENT_ITEMS_STORAGE_KEY = 'recentItems';
 interface SerializedRecentItem {
   name: string;
   type: string;
-  itemType: 'launch' | 'script' | 'jetbrains';
+  itemType: 'launch' | 'script' | 'jetbrains' | 'makefile-task';
   // Additional properties based on item type
   scriptCommand?: string;
   packageJsonPath?: string;
@@ -33,6 +34,8 @@ interface SerializedRecentItem {
   xmlFilePath?: string;
   workspaceFolderName?: string;
   workspaceFolderPath?: string;
+  makefilePath?: string;
+  recipe?: string;
 }
 
 /**
@@ -159,7 +162,7 @@ export class RecentItemsManager {
         }
         
         // Skip if workspace folder was not found
-        if (!workspaceFolder && (item.itemType === 'launch' || item.itemType === 'script' || item.itemType === 'jetbrains')) {
+        if (!workspaceFolder && (item.itemType === 'launch' || item.itemType === 'script' || item.itemType === 'jetbrains' || item.itemType === 'makefile-task')) {
           logDebug(`Skipping item "${item.name}" - workspace folder not found`);
           skippedCount++;
           continue;
@@ -191,6 +194,14 @@ export class RecentItemsManager {
               workspaceFolder
             ));
             loadedCount++;
+          } else if (item.itemType === 'makefile-task' && item.makefilePath && workspaceFolder) {
+            this.recentItems.push(new MakefileTaskItem(
+              item.name,
+              item.makefilePath,
+              workspaceFolder,
+              item.recipe
+            ));
+            loadedCount++;
           } else {
             logDebug(`Skipping item "${item.name}" - missing required properties for type ${item.itemType}`);
             skippedCount++;
@@ -220,7 +231,8 @@ export class RecentItemsManager {
           type: item instanceof LaunchConfigurationItem ? item.type : 
                 item instanceof JetBrainsRunConfigItem ? item.type : 'npm-script',
           itemType: item instanceof LaunchConfigurationItem ? 'launch' :
-                   item instanceof ScriptItem ? 'script' : 'jetbrains',
+                   item instanceof ScriptItem ? 'script' :
+                   item instanceof JetBrainsRunConfigItem ? 'jetbrains' : 'makefile-task',
           workspaceFolderName: item.workspaceFolder?.name,
           workspaceFolderPath: item.workspaceFolder?.uri.fsPath
         };
@@ -233,6 +245,9 @@ export class RecentItemsManager {
           baseItem.packageJsonPath = item.packageJsonPath;
         } else if (item instanceof JetBrainsRunConfigItem) {
           baseItem.xmlFilePath = item.xmlFilePath;
+        } else if (item instanceof MakefileTaskItem) {
+          baseItem.makefilePath = item.makefilePath;
+          baseItem.recipe = item.recipe;
         }
         
         return baseItem;
