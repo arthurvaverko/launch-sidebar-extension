@@ -30,3 +30,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.0.3]
 - Initial release
+
+## [0.0.8] - 2024-04-11
+### Added
+- Play (launch), edit, and delete (remove) icons now appear inline for recent items in the sidebar, matching regular items.
+- Context menu actions for recent items use the same commands and icons as regular launch configurations.
+- Updated menu contributions in `package.json` to support these features.
+
+### Changed
+- Bumped extension version to 0.0.8.

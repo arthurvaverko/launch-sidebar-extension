@@ -12,19 +12,45 @@ import { LaunchConfigurationItem } from './models/launch-items';
 import { ScriptItem } from './models/script-item';
 import { JetBrainsRunConfigItem } from './models/jetbrains-items';
 import { LaunchConfigurationProvider } from './providers/launch-configuration-provider';
+import { RecentItemsManager, LaunchItem } from './models/recent-items';
+import { RecentItemWrapper } from './models/recent-items-section';
 
 // Create a dedicated output channel for logging
 export const outputChannel = vscode.window.createOutputChannel('Launch Sidebar');
 
 /**
  * Helper function for logging to the output channel and console
+ * @param message Message to log
+ * @param tag Optional category tag for filtering logs
  */
-export function log(message: string): void {
-  outputChannel.appendLine(message);
+export function log(message: string, tag: string = 'INFO'): void {
+  const timestamp = new Date().toISOString();
+  const formattedMessage = `[${timestamp}] [${tag}] ${message}`;
+  outputChannel.appendLine(formattedMessage);
+}
+
+// Enhanced logger functions for different log levels
+export function logDebug(message: string): void {
+  log(message, 'DEBUG');
+}
+
+export function logInfo(message: string): void {
+  log(message, 'INFO');
+}
+
+export function logWarning(message: string): void {
+  log(message, 'WARNING');
+}
+
+export function logError(message: string): void {
+  log(message, 'ERROR');
 }
 
 // Override console.log to redirect all output to our output channel
 const originalConsoleLog = console.log;
+const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error;
+
 console.log = function(...args: any[]) {
   // Convert all arguments to strings and join them
   const message = args.map(arg => {
@@ -39,10 +65,50 @@ console.log = function(...args: any[]) {
   }).join(' ');
   
   // Log to our output channel
-  outputChannel.appendLine(message);
+  logDebug(message);
   
   // Also log to the original console.log for development purposes
   originalConsoleLog.apply(console, args);
+};
+
+console.warn = function(...args: any[]) {
+  // Convert all arguments to strings and join them
+  const message = args.map(arg => {
+    if (typeof arg === 'object') {
+      try {
+        return JSON.stringify(arg);
+      } catch (e) {
+        return String(arg);
+      }
+    }
+    return String(arg);
+  }).join(' ');
+  
+  // Log to our output channel
+  logWarning(message);
+  
+  // Also log to the original console.warn for development purposes
+  originalConsoleWarn.apply(console, args);
+};
+
+console.error = function(...args: any[]) {
+  // Convert all arguments to strings and join them
+  const message = args.map(arg => {
+    if (typeof arg === 'object') {
+      try {
+        return JSON.stringify(arg);
+      } catch (e) {
+        return String(arg);
+      }
+    }
+    return String(arg);
+  }).join(' ');
+  
+  // Log to our output channel
+  logError(message);
+  
+  // Also log to the original console.error for development purposes
+  originalConsoleError.apply(console, args);
 };
 
 /**
@@ -121,44 +187,102 @@ export const terminalManager = new TerminalManager();
  * Sets up the sidebar view, tree data provider, and command handlers
  */
 export function activate(context: vscode.ExtensionContext) {
-  log('Activating Launch Sidebar extension');
-
-  // Register terminal closed event to cleanup terminal references
-  context.subscriptions.push(
-    vscode.window.onDidCloseTerminal(() => {
-      terminalManager.cleanupTerminals();
-    })
-  );
-
-  // Create tree data provider and register views
-  const launchProvider = new LaunchConfigurationProvider();
+  logInfo('=== Launch Sidebar Extension Activating ===');
+  logInfo(`VS Code version: ${vscode.version}`);
+  logInfo(`Extension path: ${context.extensionPath}`);
   
-  // Register the view containers and tree views
-  context.subscriptions.push(
-    vscode.window.registerTreeDataProvider('launchConfigurations', launchProvider),
-    vscode.commands.registerCommand('launch-sidebar.refreshScripts', () => {
+  try {
+    // Check workspace info
+    const workspaceFolders = vscode.workspace.workspaceFolders || [];
+    logInfo(`Workspace folders: ${workspaceFolders.length}`);
+    workspaceFolders.forEach((folder, index) => {
+      logInfo(`Workspace #${index + 1}: ${folder.name} (${folder.uri.fsPath})`);
+    });
+  
+    // Create the recent items manager
+    logInfo('Creating RecentItemsManager');
+    const recentItemsManager = new RecentItemsManager(context);
+    
+    // Create tree data provider and register views
+    logInfo('Creating LaunchConfigurationProvider');
+    const launchProvider = new LaunchConfigurationProvider(recentItemsManager);
+    
+    // Initialize the static RecentItemsManager reference
+    logInfo('Setting up RecentItemWrapper static references');
+    RecentItemWrapper.setRecentItemsManager(recentItemsManager);
+    
+    // Create a bound refresh function that won't lose context
+    const boundRefresh = () => {
+      logDebug('Bound refresh function called');
       launchProvider.refresh();
-    }),
-    vscode.commands.registerCommand('launch-sidebar.runScript', (script: ScriptItem | JetBrainsRunConfigItem | LaunchConfigurationItem) => {
-      script.execute();
-    })
-  );
-
-  // Update tree when workspace folders change
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeWorkspaceFolders(() => {
-      launchProvider.refresh();
-    })
-  );
+    };
+    
+    // Set the refresh function
+    RecentItemWrapper.setRefreshFunction(boundRefresh);
   
-  // Register all commands
-  registerCommands(context, launchProvider);
+    // Register terminal closed event to cleanup terminal references
+    logInfo('Registering event listeners');
+    context.subscriptions.push(
+      vscode.window.onDidCloseTerminal(() => {
+        logDebug('Terminal closed, cleaning up');
+        terminalManager.cleanupTerminals();
+      })
+    );
+    
+    // Register the view containers and tree views
+    logInfo('Registering tree view and commands');
+    context.subscriptions.push(
+      vscode.window.registerTreeDataProvider('launchConfigurations', launchProvider),
+      vscode.commands.registerCommand('launch-sidebar.refreshScripts', () => {
+        logDebug('Refresh scripts command called');
+        launchProvider.refresh();
+      }),
+      vscode.commands.registerCommand('launch-sidebar.runScript', (script: ScriptItem | JetBrainsRunConfigItem | LaunchConfigurationItem) => {
+        logInfo(`Running script: ${script.name}`);
+        script.execute();
+        // Add to recent items
+        logDebug(`Adding ${script.name} to recent items`);
+        recentItemsManager.addRecentItem(script);
+        launchProvider.refresh();
+      }),
+      vscode.commands.registerCommand('launch-sidebar.runRecentItem', (wrapper: RecentItemWrapper) => {
+        logInfo(`Running recent item: ${wrapper.originalItem?.name}`);
+        wrapper.execute();
+      }),
+      vscode.commands.registerCommand('launch-sidebar.removeRecentItem', (wrapper: RecentItemWrapper) => {
+        logInfo(`Removing recent item: ${wrapper.originalItem?.name}`);
+        wrapper.removeFromRecentItems();
+        // Force a refresh of the tree view after removing the item
+        logDebug('Command handler: forcing tree view refresh');
+        RecentItemWrapper.forceRefresh();
+      })
+    );
   
-  // Setup file watchers
-  setupFileWatchers(context, launchProvider);
-  
-  // Initial refresh
-  launchProvider.refresh();
+    // Update tree when workspace folders change
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeWorkspaceFolders(() => {
+        logInfo('Workspace folders changed, refreshing');
+        launchProvider.refresh();
+      })
+    );
+    
+    // Register all commands
+    logInfo('Registering additional commands');
+    registerCommands(context, launchProvider, recentItemsManager);
+    
+    // Setup file watchers
+    logInfo('Setting up file watchers');
+    setupFileWatchers(context, launchProvider);
+    
+    // Initial refresh
+    logInfo('Performing initial refresh');
+    launchProvider.refresh();
+    
+    logInfo('=== Launch Sidebar Extension Activated ===');
+  } catch (error) {
+    logError(`Error during activation: ${error}`);
+    console.error(error);
+  }
 }
 
 /**
@@ -166,7 +290,8 @@ export function activate(context: vscode.ExtensionContext) {
  */
 function registerCommands(
   context: vscode.ExtensionContext,
-  launchConfigurationProvider: LaunchConfigurationProvider
+  launchConfigurationProvider: LaunchConfigurationProvider,
+  recentItemsManager: RecentItemsManager
 ): void {
   // Command: Refresh configuration list
   const refreshCommand = vscode.commands.registerCommand('launchConfigurations.refresh', () => {
@@ -180,6 +305,10 @@ function registerCommands(
       if (item.workspaceFolder) {
         // Start debugging with the selected configuration
         await vscode.debug.startDebugging(item.workspaceFolder, item.configuration);
+        
+        // Add to recent items
+        recentItemsManager.addRecentItem(item);
+        launchConfigurationProvider.refresh();
         
         // Show notification
         vscode.window.showInformationMessage(`Launched debug configuration: ${item.name}`);
@@ -237,6 +366,10 @@ function registerCommands(
       terminal.sendText(`${packageManager} run ${item.name}`);
       terminal.show();
       
+      // Add to recent items
+      recentItemsManager.addRecentItem(item);
+      launchConfigurationProvider.refresh();
+      
       // Show notification
       vscode.window.showInformationMessage(`Running ${packageManager} script: ${item.name}`);
     } catch (error) {
@@ -251,14 +384,16 @@ function registerCommands(
       const document = await vscode.workspace.openTextDocument(vscode.Uri.file(item.packageJsonPath));
       const editor = await vscode.window.showTextDocument(document);
       
-      // Find the position of the script in the file
-      const content = document.getText();
-      const scriptRegex = new RegExp(`["']${item.name}["']\\s*:\\s*["']`);
-      const match = scriptRegex.exec(content);
+      // Search for the script in the file
+      const text = document.getText();
+      const scriptRegex = new RegExp(`["']${item.name}["']\\s*:\\s*["']([^"']*)["']`);
+      const match = scriptRegex.exec(text);
       
       if (match) {
-        // Find the position and set the cursor there
+        // Calculate the position
         const position = document.positionAt(match.index);
+        
+        // Set cursor position and reveal it
         editor.selection = new vscode.Selection(position, position);
         editor.revealRange(
           new vscode.Range(position, position),
@@ -269,89 +404,65 @@ function registerCommands(
       vscode.window.showErrorMessage(`Failed to open script for editing: ${error}`);
     }
   });
-
+  
   // Command: Run a JetBrains configuration
   const runJetBrainsConfigCommand = vscode.commands.registerCommand('launchConfigurations.runJetBrainsConfig', async (item: JetBrainsRunConfigItem) => {
     try {
-      // Determine the working directory to use
-      // Use the working directory from the configuration if available, otherwise use the workspace folder
-      const workingDir = item.workingDirectory || item.workspaceFolder.uri.fsPath;
-      
-      log(`Running JetBrains configuration: ${item.name} in working directory: ${workingDir}`);
+      // Get the directory containing the configuration
+      const workDir = item.workingDirectory || item.workspaceFolder.uri.fsPath;
       
       // Create a terminal for running the configuration
-      const terminal = terminalManager.getOrCreateTerminal(`JetBrains: ${item.name}`, workingDir);
+      const terminal = terminalManager.getOrCreateTerminal(`JetBrains: ${item.name}`, workDir);
       
-      // Determine the command to run based on the configuration type
+      // Construct the command to run
       let command = '';
       
       if (item.type.includes('GoApplicationRunConfiguration')) {
+        // Special handling for Go Application run configurations
         if (item.packagePath) {
-          command = `go run ${item.packagePath}`;
+          command = `go run`;
+          
+          // Add go_parameters if present
+          if (item.goParameters) {
+            command += ` ${item.goParameters}`;
+          }
+          
+          // Add package path
+          command += ` ${item.packagePath}`;
+          
+          // Add command args if present
           if (item.cmdString) {
             command += ` ${item.cmdString}`;
           }
-        } else {
-          command = `go run .`;
         }
-      } else if (item.type.includes('GoTestRunConfiguration')) {
-        if (item.packagePath) {
-          command = `go test ${item.packagePath}`;
-          if (item.cmdString) {
-            command += ` ${item.cmdString}`;
-          }
-        } else {
-          command = `go test ./...`;
-        }
-      } else if (item.type.includes('NodeJSConfigurationType')) {
-        command = `node ${item.packagePath || ''}`;
-      } else if (item.type.includes('JavaScriptTestRunnerJest')) {
-        command = `npx jest ${item.packagePath || ''}`;
-      } else if (item.type.includes('ReactNative')) {
-        command = `npx react-native start`;
-      } else if (item.type.includes('ShConfigurationType')) {
-        // Shell script configuration - handle both inline scripts and script files
-        
-        if (item.scriptText) {
-          // For inline script, run directly in terminal
-          log(`Running JetBrains inline shell script: ${item.name}`);
-          
-          // Use the specified interpreter or default to bash
-          const interpreter = item.interpreter || '/bin/bash';
-          
-          // Run the script directly in the terminal
-          // The -c flag tells the shell to execute the command string that follows
-          command = `${interpreter} -c "${item.scriptText.replace(/"/g, '\\"')}"`;
-        } else if (item.packagePath) {
-          // Execute an existing script file
-          log(`Running JetBrains shell script file: ${item.packagePath}`);
-          
-          // Use the specified interpreter or default to bash
-          const interpreter = item.interpreter || '/bin/bash';
-          
-          // Ensure script has execute permissions
-          if (item.executeScriptFile) {
-            // Run the script file directly (making it executable first)
-            command = `chmod +x "${item.packagePath}" && "${item.packagePath}" ${item.cmdString || ''}`;
-          } else {
-            // Run through interpreter
-            command = `"${interpreter}" "${item.packagePath}" ${item.cmdString || ''}`;
-          }
-        } else {
-          // Default to running generic shell
-          command = `sh`;
-        }
+      } else if (item.cmdString) {
+        // Use the command string from the run configuration
+        command = item.cmdString;
+      } else if (item.executeScriptFile && item.packagePath) {
+        // Run a script file with the specified interpreter
+        const interpreter = item.interpreter || 'node';
+        command = `${interpreter} "${item.packagePath}"`;
+      } else if (item.scriptText) {
+        // Run script text directly
+        command = item.scriptText;
       } else {
-        // For unknown configuration types, just open the XML file
-        vscode.window.showInformationMessage(`Unknown configuration type: ${item.type}. Opening configuration file instead.`);
-        const document = await vscode.workspace.openTextDocument(vscode.Uri.file(item.xmlFilePath));
-        await vscode.window.showTextDocument(document);
-        return;
+        throw new Error('Unable to determine how to run this configuration');
       }
       
-      // Run the command
+      // Set environment variables if defined
+      if (item.envVars && Object.keys(item.envVars).length > 0) {
+        for (const [key, value] of Object.entries(item.envVars)) {
+          terminal.sendText(`export ${key}="${value}"`);
+        }
+      }
+      
+      // Run the command in the terminal
       terminal.sendText(command);
       terminal.show();
+      
+      // Add to recent items
+      recentItemsManager.addRecentItem(item);
+      launchConfigurationProvider.refresh();
       
       // Show notification
       vscode.window.showInformationMessage(`Running JetBrains configuration: ${item.name}`);
@@ -370,8 +481,15 @@ function registerCommands(
       vscode.window.showErrorMessage(`Failed to open JetBrains configuration for editing: ${error}`);
     }
   });
-
-  // Add all disposables to the context subscriptions
+  
+  // Command: Clear recent items 
+  const clearRecentItemsCommand = vscode.commands.registerCommand('launchConfigurations.clearRecentItems', () => {
+    recentItemsManager.clearRecentItems();
+    launchConfigurationProvider.refresh();
+    vscode.window.showInformationMessage('Recent items list cleared');
+  });
+  
+  // Register all commands
   context.subscriptions.push(
     refreshCommand,
     launchCommand,
@@ -379,7 +497,8 @@ function registerCommands(
     runScriptCommand,
     editScriptCommand,
     runJetBrainsConfigCommand,
-    editJetBrainsConfigCommand
+    editJetBrainsConfigCommand,
+    clearRecentItemsCommand
   );
 }
 

@@ -18,6 +18,8 @@ export interface JetBrainsRunConfig {
   interpreter?: string;
   executeInTerminal?: boolean;
   executeScriptFile?: boolean;
+  goParameters?: string;
+  envVars?: Record<string, string>;
 }
 
 /**
@@ -247,10 +249,27 @@ export class JetBrainsRunConfigParser {
       log(`[JetBrains Parser] Found working directory: ${runConfig.workingDirectory}`);
     }
     
-    // Extract go parameters (command line arguments)
+    // Extract go parameters
     if (configElement.go_parameters && configElement.go_parameters.value) {
-      runConfig.command = configElement.go_parameters.value;
-      log(`[JetBrains Parser] Found go parameters: ${runConfig.command}`);
+      runConfig.goParameters = configElement.go_parameters.value;
+      log(`[JetBrains Parser] Found go parameters: ${runConfig.goParameters}`);
+    }
+    
+    // Extract environment variables
+    if (configElement.envs && configElement.envs.env) {
+      runConfig.envVars = {};
+      
+      // Handle both array and single env var
+      const envVars = Array.isArray(configElement.envs.env) 
+        ? configElement.envs.env 
+        : [configElement.envs.env];
+        
+      for (const env of envVars) {
+        if (env.name && env.value !== undefined) {
+          runConfig.envVars[env.name] = env.value;
+          log(`[JetBrains Parser] Found env var: ${env.name}=${env.value}`);
+        }
+      }
     }
   }
   

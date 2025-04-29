@@ -3,7 +3,7 @@
   "displayName": "Launch Sidebar",
   "description": "View and quickly launch debug configurations from a sidebar",
   "publisher": "arthurvaverko",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "icon": "resources/logo-large.png",
   "repository": {
     "type": "git",
@@ -42,28 +42,28 @@
     "commands": [
       {
         "command": "launchConfigurations.refresh",
-        "title": "Refresh Launch Configurations",
+        "title": "Refresh",
         "icon": "$(refresh)"
       },
       {
         "command": "launchConfigurations.launch",
-        "title": "Launch Debug Configuration",
+        "title": "Launch Configuration",
         "icon": "$(play)"
       },
       {
         "command": "launchConfigurations.edit",
-        "title": "Edit Launch Configuration",
-        "icon": "$(gear)"
+        "title": "Edit Configuration",
+        "icon": "$(edit)"
       },
       {
         "command": "launchConfigurations.runScript",
-        "title": "Run npm script",
-        "icon": "$(play)"
+        "title": "Run Script",
+        "icon": "$(terminal)"
       },
       {
         "command": "launchConfigurations.editScript",
-        "title": "Edit npm script",
-        "icon": "$(gear)"
+        "title": "Edit Script",
+        "icon": "$(edit)"
       },
       {
         "command": "launchConfigurations.runJetBrainsConfig",
@@ -73,7 +73,17 @@
       {
         "command": "launchConfigurations.editJetBrainsConfig",
         "title": "Edit JetBrains Configuration",
-        "icon": "$(gear)"
+        "icon": "$(edit)"
+      },
+      {
+        "command": "launchConfigurations.clearRecentItems",
+        "title": "Clear Recent Items",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "launch-sidebar.removeRecentItem",
+        "title": "Remove from Recent Items",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -87,12 +97,12 @@
       "view/item/context": [
         {
           "command": "launchConfigurations.launch",
-          "when": "view == launchConfigurations && viewItem == configuration",
+          "when": "view == launchConfigurations && (viewItem == configuration || viewItem =~ /recent-item/)",
           "group": "inline"
         },
         {
           "command": "launchConfigurations.edit",
-          "when": "view == launchConfigurations && viewItem == configuration",
+          "when": "view == launchConfigurations && (viewItem == configuration || viewItem =~ /recent-item/)",
           "group": "inline"
         },
         {
@@ -113,6 +123,16 @@
         {
           "command": "launchConfigurations.editJetBrainsConfig",
           "when": "view == launchConfigurations && viewItem == jetbrains-run-config",
+          "group": "inline"
+        },
+        {
+          "command": "launchConfigurations.clearRecentItems",
+          "when": "view == launchConfigurations && viewItem == section-recent-items",
+          "group": "inline"
+        },
+        {
+          "command": "launch-sidebar.removeRecentItem",
+          "when": "view == launchConfigurations && viewItem =~ /recent-item/",
           "group": "inline"
         }
       ]

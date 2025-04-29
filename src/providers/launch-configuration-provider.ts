@@ -6,12 +6,14 @@ import { ConfigPosition } from '../models/config-position';
 import { LaunchConfigurationItem, LaunchConfigurationErrorItem } from '../models/launch-items';
 import { JetBrainsRunConfigItem } from '../models/jetbrains-items';
 import { ScriptItem } from '../models/script-item';
-import { SectionItem } from '../models/section-item';
+import { SectionItem, SectionType } from '../models/section-item';
+import { RecentItemsSection, RecentItemWrapper } from '../models/recent-items-section';
+import { RecentItemsManager } from '../models/recent-items';
 import { detectPackageManager, detectRootPackageManager, PackageManager } from '../utils/package-manager';
 import { JetBrainsRunConfigParser } from '../utils/jetbrains-parser';
 
 // Union type for our tree items
-export type LaunchTreeItem = LaunchConfigurationItem | LaunchConfigurationErrorItem | ScriptItem | SectionItem | JetBrainsRunConfigItem;
+export type LaunchTreeItem = LaunchConfigurationItem | LaunchConfigurationErrorItem | ScriptItem | SectionItem | JetBrainsRunConfigItem | RecentItemsSection | RecentItemWrapper;
 
 /**
  * Tree data provider for the Launch Sidebar extension
@@ -21,14 +23,23 @@ export type LaunchTreeItem = LaunchConfigurationItem | LaunchConfigurationErrorI
 export class LaunchConfigurationProvider implements vscode.TreeDataProvider<LaunchTreeItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<LaunchTreeItem | undefined | null | void> = new vscode.EventEmitter<LaunchTreeItem | undefined | null | void>();
   readonly onDidChangeTreeData: vscode.Event<LaunchTreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
+  private recentItemsManager: RecentItemsManager;
   
-  constructor() {}
+  constructor(recentItemsManager: RecentItemsManager) {
+    this.recentItemsManager = recentItemsManager;
+    // Listen for changes to recent items
+    this.recentItemsManager.onDidChangeRecentItems(() => {
+      console.log('Recent items changed, refreshing tree view');
+      this.refresh();
+    });
+  }
   
   /**
    * Refresh the tree view
    * Triggers a reload of all configurations and scripts
    */
   refresh(): void {
+    console.log('LaunchConfigurationProvider.refresh() called');
     this._onDidChangeTreeData.fire();
   }
 
@@ -47,14 +58,19 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
   async getChildren(element?: LaunchTreeItem): Promise<LaunchTreeItem[]> {
     // If a section item is provided, return its children
     if (element instanceof SectionItem) {
-      if (element.sectionType === 'launch-configs' && element.workspaceFolder) {
+      if (element.sectionType === SectionType.LAUNCH_CONFIGURATIONS && element.workspaceFolder) {
         return this.getLaunchConfigurations(element.workspaceFolder);
-      } else if (element.sectionType === 'scripts' && element.packageJsonPath && element.workspaceFolder) {
+      } else if (element.sectionType === SectionType.SCRIPTS && element.packageJsonPath && element.workspaceFolder) {
         return this.getPackageScripts(element.packageJsonPath, element.workspaceFolder);
-      } else if (element.sectionType === 'jetbrains-configs' && element.workspaceFolder) {
+      } else if (element.sectionType === SectionType.JETBRAINS_CONFIGS && element.workspaceFolder) {
         return this.getJetBrainsConfigurations(element.workspaceFolder);
       }
       return [];
+    }
+    
+    // If RecentItemsSection, return recent items
+    if (element instanceof RecentItemsSection) {
+      return this.getRecentItems();
     }
     
     // If any other item is provided or no item, return the root items (sections)
@@ -66,6 +82,16 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
   }
 
   /**
+   * Get recent items for the sidebar
+   */
+  private getRecentItems(): LaunchTreeItem[] {
+    console.log('Getting recent items');
+    const recentItems = this.recentItemsManager.getRecentItems();
+    console.log(`Found ${recentItems.length} recent items`);
+    return recentItems.map(item => new RecentItemWrapper(item));
+  }
+
+  /**
    * Get all sections for the sidebar
    * Creates section headers for launch configurations, npm scripts, and JetBrains run configurations
    * for each workspace folder
@@ -73,6 +99,9 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
   private async getSections(): Promise<LaunchTreeItem[]> {
     // Root level - create a section for each workspace folder
     const sections: LaunchTreeItem[] = [];
+    
+    // Add Recent Items section at the top
+    sections.push(new RecentItemsSection());
     
     // Get all workspace folders sorted alphabetically by name
     const workspaceFolders = vscode.workspace.workspaceFolders || [];
@@ -83,8 +112,8 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
       const launchJsonPath = path.join(folder.uri.fsPath, '.vscode', 'launch.json');
       if (fs.existsSync(launchJsonPath)) {
         sections.push(new SectionItem(
-          `${path.basename(folder.uri.fsPath)}: Launch Configurations`,
-          'launch-configs',
+          `${path.basename(folder.uri.fsPath)}`,
+          SectionType.LAUNCH_CONFIGURATIONS,
           folder
         ));
       }
@@ -93,8 +122,8 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
       const packageJsonPath = path.join(folder.uri.fsPath, 'package.json');
       if (fs.existsSync(packageJsonPath)) {
         sections.push(new SectionItem(
-          `${path.basename(folder.uri.fsPath)}: npm Scripts`,
-          'scripts',
+          `${path.basename(folder.uri.fsPath)}`,
+          SectionType.SCRIPTS,
           folder,
           packageJsonPath
         ));
@@ -104,8 +133,8 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
       const hasJetBrainsConfigs = await this.hasJetBrainsRunConfigurations(folder);
       if (hasJetBrainsConfigs) {
         sections.push(new SectionItem(
-          `${path.basename(folder.uri.fsPath)}: JetBrains Run Configurations`,
-          'jetbrains-configs',
+          `${path.basename(folder.uri.fsPath)}`,
+          SectionType.JETBRAINS_CONFIGS,
           folder
         ));
       }
@@ -132,7 +161,7 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
           if (fs.existsSync(nestedPackageJsonPath)) {
             sections.push(new SectionItem(
               `${dir.name}: npm Scripts`,
-              'scripts',
+              SectionType.SCRIPTS,
               folder,
               nestedPackageJsonPath
             ));
@@ -148,7 +177,7 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
               if (fs.existsSync(deepNestedPackageJsonPath)) {
                 sections.push(new SectionItem(
                   `${dir.name}/${nestedDir.name}: npm Scripts`,
-                  'scripts',
+                  SectionType.SCRIPTS,
                   folder,
                   deepNestedPackageJsonPath
                 ));
@@ -456,7 +485,9 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
           config.scriptText,
           config.interpreter,
           config.executeInTerminal,
-          config.executeScriptFile
+          config.executeScriptFile,
+          config.goParameters,
+          config.envVars
         ));
       }
     } catch (error) {

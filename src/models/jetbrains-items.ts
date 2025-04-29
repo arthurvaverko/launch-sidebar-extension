@@ -16,7 +16,9 @@ export class JetBrainsRunConfigItem extends vscode.TreeItem {
     public readonly scriptText?: string,
     public readonly interpreter?: string,
     public readonly executeInTerminal?: boolean,
-    public readonly executeScriptFile?: boolean
+    public readonly executeScriptFile?: boolean,
+    public readonly goParameters?: string,
+    public readonly envVars?: Record<string, string>
   ) {
     super(name, vscode.TreeItemCollapsibleState.None);
     this.tooltip = `${name} (${type})`;
