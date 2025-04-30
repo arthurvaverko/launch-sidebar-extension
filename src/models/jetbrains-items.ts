@@ -49,4 +49,11 @@ export class JetBrainsRunConfigItem extends vscode.TreeItem {
   execute(): void {
     vscode.commands.executeCommand('launchConfigurations.runJetBrainsConfig', this);
   }
+
+  /**
+   * Edit this JetBrains configuration
+   */
+  edit(): void {
+    vscode.commands.executeCommand('launchConfigurations.editJetBrainsConfig', this);
+  }
 }

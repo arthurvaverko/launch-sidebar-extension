@@ -29,4 +29,11 @@ export class MakefileTaskItem extends vscode.TreeItem {
   execute(): void {
     vscode.commands.executeCommand('launchConfigurations.runMakefileTask', this);
   }
+
+  /**
+   * Edit this Makefile task
+   */
+  edit(): void {
+    vscode.commands.executeCommand('launchConfigurations.editMakefileTask', this);
+  }
 } 

@@ -144,13 +144,14 @@ export class RecentItemsManager {
   private loadRecentItems(): void {
     try {
       logDebug('Loading recent items from storage');
+      // Log all available workspace folders
+      const workspaceFolders = vscode.workspace.workspaceFolders || [];
+      logDebug(`Workspace folders detected: ${workspaceFolders.map(f => `${f.name} (${f.uri.fsPath})`).join(', ')}`);
       const serializedItems = this.context.globalState.get<SerializedRecentItem[]>(RECENT_ITEMS_STORAGE_KEY, []);
-      logDebug(`Found ${serializedItems.length} stored items`);
-      
+      logDebug(`[PERSISTENCE] Found ${serializedItems.length} stored items in key '${RECENT_ITEMS_STORAGE_KEY}': ${JSON.stringify(serializedItems, null, 2)}`);
       this.recentItems = [];
       let loadedCount = 0;
       let skippedCount = 0;
-      
       for (const item of serializedItems) {
         // Find the workspace folder by name and path
         let workspaceFolder: vscode.WorkspaceFolder | undefined;
@@ -160,10 +161,9 @@ export class RecentItemsManager {
                      folder.uri.fsPath === item.workspaceFolderPath
           );
         }
-        
         // Skip if workspace folder was not found
         if (!workspaceFolder && (item.itemType === 'launch' || item.itemType === 'script' || item.itemType === 'jetbrains' || item.itemType === 'makefile-task')) {
-          logDebug(`Skipping item "${item.name}" - workspace folder not found`);
+          logDebug(`Skipping item "${item.name}" - workspace folder not found. Looking for name: "${item.workspaceFolderName}", path: "${item.workspaceFolderPath}". Available folders: ${workspaceFolders.map(f => `${f.name} (${f.uri.fsPath})`).join(', ')}`);
           skippedCount++;
           continue;
         }
@@ -252,7 +252,7 @@ export class RecentItemsManager {
         
         return baseItem;
       });
-      
+      logDebug(`[PERSISTENCE] Saving to key '${RECENT_ITEMS_STORAGE_KEY}': ${JSON.stringify(serializedItems, null, 2)}`);
       this.context.globalState.update(RECENT_ITEMS_STORAGE_KEY, serializedItems);
       logDebug('Recent items saved successfully');
     } catch (error) {

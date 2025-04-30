@@ -36,6 +36,13 @@ export class LaunchConfigurationItem extends vscode.TreeItem {
   execute(): void {
     vscode.commands.executeCommand('launchConfigurations.launch', this);
   }
+
+  /**
+   * Edit this launch configuration
+   */
+  edit(): void {
+    vscode.commands.executeCommand('launchConfigurations.edit', this);
+  }
 }
 
 /**

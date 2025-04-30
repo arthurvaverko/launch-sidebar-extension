@@ -35,4 +35,11 @@ export class ScriptItem extends vscode.TreeItem {
   execute(): void {
     vscode.commands.executeCommand('launchConfigurations.runScript', this);
   }
+
+  /**
+   * Edit this script
+   */
+  edit(): void {
+    vscode.commands.executeCommand('launchConfigurations.editScript', this);
+  }
 }

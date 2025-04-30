@@ -250,9 +250,35 @@ export function activate(context: vscode.ExtensionContext) {
         logInfo(`Running recent item: ${wrapper.originalItem?.name}`);
         wrapper.execute();
       }),
+      vscode.commands.registerCommand('launch-sidebar.runRecentOriginalItem', (item: any) => {
+        const original = item && item.originalItem ? item.originalItem : item;
+        logInfo(`Running original recent item: ${original?.name}`);
+        if (original && typeof original.execute === 'function') {
+          original.execute();
+        } else if (original && original.command) {
+          vscode.commands.executeCommand(original.command.command, original);
+        } else {
+          logWarning('No execute method or command found for recent original item');
+        }
+      }),
+      vscode.commands.registerCommand('launch-sidebar.editRecentOriginalItem', (item: any) => {
+        const original = item && item.originalItem ? item.originalItem : item;
+        logInfo(`Editing original recent item: ${original?.name}`);
+        if (original && typeof original.edit === 'function') {
+          original.edit();
+        } else if (original && original.command) {
+          if (original.command.command && original.command.command.includes('edit')) {
+            vscode.commands.executeCommand(original.command.command, original);
+          } else {
+            vscode.window.showWarningMessage('No edit method or command found for recent original item');
+          }
+        } else {
+          vscode.window.showWarningMessage('No edit method or command found for recent original item');
+        }
+      }),
       vscode.commands.registerCommand('launch-sidebar.removeRecentItem', (wrapper: RecentItemWrapper) => {
         logInfo(`Removing recent item: ${wrapper.originalItem?.name}`);
-        wrapper.removeFromRecentItems();
+        wrapper.remove();
         // Force a refresh of the tree view after removing the item
         logDebug('Command handler: forcing tree view refresh');
         RecentItemWrapper.forceRefresh();

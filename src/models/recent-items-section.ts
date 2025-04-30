@@ -10,9 +10,16 @@ export class RecentItemsSection extends vscode.TreeItem {
   constructor() {
     super('Recently Used', vscode.TreeItemCollapsibleState.Expanded);
     this.contextValue = 'section-recent-items';
+    Object.defineProperty(this, 'contextValue', {
+      writable: false,
+      configurable: false,
+      value: 'section-recent-items'
+    });
     this.iconPath = new vscode.ThemeIcon('history');
     this.tooltip = 'Recently used launch configurations, scripts, and JetBrains run configurations';
     this.sectionType = SectionType.RECENT;
+    // Debug: log contextValue and stack trace
+    console.log('[Launch Sidebar] RecentItemsSection constructed with contextValue:', this.contextValue);
   }
 
   public readonly sectionType: SectionType;
@@ -52,12 +59,18 @@ export class RecentItemWrapper extends vscode.TreeItem {
     // The delete action is already present as 'launch-sidebar.removeRecentItem'
     // No further code is needed here for the icons, as they are defined in package.json
 
-    // Set the default command to run the item
-    this.command = {
-      title: 'Run',
-      command: 'launch-sidebar.runRecentItem',
-      arguments: [this]
-    };
+    // Set the default command to run the original item, not the wrapper
+    if (item.command) {
+      this.command = { ...item.command, arguments: [item] };
+    } else if (typeof item.execute === 'function') {
+      this.command = {
+        title: 'Run',
+        command: 'launch-sidebar.runRecentOriginalItem',
+        arguments: [item]
+      };
+    } else {
+      this.command = undefined;
+    }
   }
   
   /**
@@ -123,7 +136,7 @@ export class RecentItemWrapper extends vscode.TreeItem {
         logDebug(`Refreshing tree view after adding ${this.originalItem.name}`);
         RecentItemWrapper.forceRefresh();
       } catch (error) {
-        logError(`Error updating recent items for ${this.originalItem.name}: ${error}`);
+        logError(`Error adding ${this.originalItem.name} to recent items: ${error}`);
       }
     } else {
       if (!RecentItemWrapper.recentItemsManager) {
@@ -133,36 +146,20 @@ export class RecentItemWrapper extends vscode.TreeItem {
         logWarning('Cannot add to recent items: originalItem is undefined');
       }
     }
-    
-    // Execute the item
-    try {
-      if ('execute' in this.originalItem && typeof this.originalItem.execute === 'function') {
-        logDebug(`Executing original item's execute method`);
-        await this.originalItem.execute();
-      } else if (this.originalItem.command) {
-        // Fall back to command if execute isn't available
-        logDebug(`Executing original item's command: ${this.originalItem.command.command}`);
-        await vscode.commands.executeCommand(this.originalItem.command.command, this.originalItem);
-      } else {
-        logWarning(`No execute method or command found for ${this.originalItem?.name}`);
-      }
-    } catch (error) {
-      logError(`Error executing item ${this.originalItem?.name}: ${error}`);
-    }
   }
-  
+
   /**
-   * Removes this item from the recent items list
+   * Removes the wrapped item from the recent items
    */
-  public removeFromRecentItems(): void {
+  public async remove(): Promise<void> {
     logInfo(`Removing recent item #${this.instanceId}: ${this.originalItem?.name}`);
     
     if (RecentItemWrapper.recentItemsManager && this.originalItem) {
       try {
-        logDebug(`Removing ${this.originalItem.name} from recent items`);
+        logDebug(`Removing ${this.originalItem.name} from recent items from #${this.instanceId}`);
         RecentItemWrapper.recentItemsManager.removeRecentItem(this.originalItem);
         
-        // Refresh the tree view to show updated list
+        // Refresh the tree view to show updated ordering
         logDebug(`Refreshing tree view after removing ${this.originalItem.name}`);
         RecentItemWrapper.forceRefresh();
       } catch (error) {
@@ -177,4 +174,4 @@ export class RecentItemWrapper extends vscode.TreeItem {
       }
     }
   }
-} 
+}

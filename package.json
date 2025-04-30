@@ -58,7 +58,7 @@
       {
         "command": "launchConfigurations.runScript",
         "title": "Run Script",
-        "icon": "$(terminal)"
+        "icon": "$(play)"
       },
       {
         "command": "launchConfigurations.editScript",
@@ -94,6 +94,16 @@
         "command": "launchConfigurations.editMakefileTask",
         "title": "Edit Makefile Task",
         "icon": "$(edit)"
+      },
+      {
+        "command": "launch-sidebar.runRecentOriginalItem",
+        "title": "Run Recent Item",
+        "icon": "$(play)"
+      },
+      {
+        "command": "launch-sidebar.editRecentOriginalItem",
+        "title": "Edit Recent Item",
+        "icon": "$(edit)"
       }
     ],
     "menus": {
@@ -107,12 +117,22 @@
       "view/item/context": [
         {
           "command": "launchConfigurations.launch",
-          "when": "view == launchConfigurations && (viewItem == configuration || viewItem =~ /recent-item/)",
+          "when": "view == launchConfigurations && viewItem == configuration",
           "group": "inline"
         },
         {
           "command": "launchConfigurations.edit",
-          "when": "view == launchConfigurations && (viewItem == configuration || viewItem =~ /recent-item/)",
+          "when": "view == launchConfigurations && viewItem == configuration",
+          "group": "inline"
+        },
+        {
+          "command": "launch-sidebar.runRecentOriginalItem",
+          "when": "view == launchConfigurations && (viewItem =~ /recent-item/ && viewItem != section-recent-items)",
+          "group": "inline"
+        },
+        {
+          "command": "launch-sidebar.editRecentOriginalItem",
+          "when": "view == launchConfigurations && (viewItem =~ /recent-item/ && viewItem != section-recent-items)",
           "group": "inline"
         },
         {
@@ -142,7 +162,7 @@
         },
         {
           "command": "launch-sidebar.removeRecentItem",
-          "when": "view == launchConfigurations && viewItem =~ /recent-item/",
+          "when": "view == launchConfigurations && (viewItem =~ /recent-item/ && viewItem != section-recent-items)",
           "group": "inline"
         },
         {
