@@ -1,6 +1,6 @@
 # Launch Sidebar
 
-[![Version](https://img.shields.io/badge/version-0.0.7-blue)](https://github.com/arthurvaverko/launch-sidebar-extension/releases)
+[![Version](https://img.shields.io/badge/version-0.0.9-blue)](https://github.com/arthurvaverko/launch-sidebar-extension/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Install-brightgreen)](https://marketplace.visualstudio.com/items?itemName=arthurvaverko.launch-sidebar)
 
@@ -98,46 +98,6 @@ Contributions are welcome! Feel free to submit a Pull Request on [GitHub](https:
 ## License
 
 This extension is licensed under the [MIT License](LICENSE).
-
-## Release Notes
-
-### 0.0.7
-- Fixed error "No view is registered with id: launchConfigurationsView"
-- Added terminal reuse functionality to prevent opening new terminals for each command execution
-- Fixed command handling for all item types (launch configs, scripts, JetBrains configs)
-- Implemented proper terminal management for better user experience
-
-### 0.0.6
-- Complete rewrite of JetBrains configuration parser using proper XML parsing
-- Robust support for ShConfigurationType configurations
-- Fixed handling of all shell script configuration options
-- Added support for .run.xml file extension format
-
-### 0.0.5
-- Added support for JetBrains ShConfigurationType (shell scripts)
-- Enhanced XML parsing for JetBrains configurations
-
-### 0.0.4
-- Fixed compatibility with Cursor (VS Code 1.96.2)
-
-### 0.0.3
-- Fix finding JetBrains config
-- Fix running JetBrains confing with project_dir variables
-
-### 0.0.2
-- Added support for JetBrains run configurations (.run/*.xml files)
-- Added ability to run Go applications, tests, and other configurations from JetBrains IDEs
-- Fixed bug: Excluded node_modules directories when scanning for npm packages
-- Improved UI consistency for all configuration types
-- Added file watchers for JetBrains configuration files
-
-### 0.0.1
-- Initial release
-- Support for debug configurations and npm scripts
-- Smart package manager detection
-- Color-coded icons for different script types
-- Hierarchical organization of configurations
-
 ---
 
 ## Following extension guidelines
