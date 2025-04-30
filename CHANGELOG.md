@@ -4,6 +4,19 @@ All notable changes to the "launch-sidebar" extension will be documented in this
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.10] - 2024-05-01
+### Fixed
+- Play, edit, and delete icons no longer appear on the 'Recently Used' section header.
+- Play and edit actions for recent items now work correctly and invoke the original item's logic.
+- Edit button for recent items now works for all item types.
+
+### Changed
+- NPM scripts now use the play icon for consistency.
+
+### Improved
+- Added detailed persistence and debug logging for recent items.
+- More robust handling and diagnostics for recent item restoration across sessions.
+
 ## [0.0.7] - 2024-04-14
 ### Fixed
 - Fixed error "No view is registered with id: launchConfigurationsView" by aligning view IDs
