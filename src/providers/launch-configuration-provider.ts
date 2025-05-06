@@ -12,6 +12,7 @@ import { RecentItemsManager } from '../models/recent-items';
 import { detectPackageManager, detectRootPackageManager, PackageManager } from '../utils/package-manager';
 import { JetBrainsRunConfigParser } from '../utils/jetbrains-parser';
 import { MakefileTaskItem } from '../models/makefile-task-item';
+import { HiddenItemsManager } from '../models/hidden-items-manager';
 
 // Union type for our tree items
 export type LaunchTreeItem = LaunchConfigurationItem | LaunchConfigurationErrorItem | ScriptItem | SectionItem | JetBrainsRunConfigItem | RecentItemsSection | RecentItemWrapper | MakefileTaskItem;
@@ -25,6 +26,8 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
   private _onDidChangeTreeData: vscode.EventEmitter<LaunchTreeItem | undefined | null | void> = new vscode.EventEmitter<LaunchTreeItem | undefined | null | void>();
   readonly onDidChangeTreeData: vscode.Event<LaunchTreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
   private recentItemsManager: RecentItemsManager;
+  private hiddenItemsManager?: HiddenItemsManager;
+  private titleBarCommand?: vscode.Disposable;
   
   constructor(recentItemsManager: RecentItemsManager) {
     this.recentItemsManager = recentItemsManager;
@@ -33,6 +36,58 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
       console.log('Recent items changed, refreshing tree view');
       this.refresh();
     });
+  }
+  
+  /**
+   * Set the hidden items manager reference
+   */
+  public setHiddenItemsManager(hiddenItemsManager: HiddenItemsManager): void {
+    this.hiddenItemsManager = hiddenItemsManager;
+    // Listen for changes to hidden items
+    this.hiddenItemsManager.onDidChangeHiddenItems(() => {
+      console.log('Hidden items changed, refreshing tree view');
+      this.refresh();
+      // Update title bar indicator
+      this.updateTitleBarIndicator();
+    });
+    
+    // Initial update of the title bar indicator
+    this.updateTitleBarIndicator();
+  }
+  
+  /**
+   * Update the title bar indicator to show hidden item count
+   */
+  private updateTitleBarIndicator(): void {
+    // Clean up previous command if it exists
+    if (this.titleBarCommand) {
+      this.titleBarCommand.dispose();
+    }
+    
+    // Skip if no hidden items manager
+    if (!this.hiddenItemsManager) {
+      return;
+    }
+    
+    // Get total hidden count
+    const totalHidden = this.hiddenItemsManager.getTotalHiddenCount();
+    
+    // Always show the eye icon in the title bar
+    // If there are hidden items, add a badge with the count
+    const iconTitle = totalHidden > 0 ? 
+      `$(eye-closed) Manage Hidden Items (${totalHidden})` : 
+      `$(eye-closed) Manage Hidden Items`;
+    
+    // Register the command with the appropriate title
+    this.titleBarCommand = vscode.commands.registerCommand('launchConfigurations.titleBarManageHiddenItems', async () => {
+      // Execute the actual command
+      await vscode.commands.executeCommand('launchConfigurations.manageHiddenItems');
+    });
+    
+    // Update the command title to include the count if needed
+    vscode.commands.executeCommand('setContext', 'launchSidebar.hiddenItemsTitle', iconTitle);
+    vscode.commands.executeCommand('setContext', 'launchSidebar.hasHiddenItems', totalHidden > 0);
+    vscode.commands.executeCommand('setContext', 'launchSidebar.hiddenItemsCount', totalHidden);
   }
   
   /**
@@ -45,10 +100,144 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
   }
 
   /**
+   * Generate a consistent section ID
+   * This ensures the same logic is used everywhere
+   */
+  public static generateSectionId(section: SectionItem): string {
+    let sectionId = `section-${section.sectionType}`;
+    
+    // Add folder name if available
+    if (section.workspaceFolder?.name) {
+      sectionId += `-${section.workspaceFolder.name}`;
+    }
+    
+    // Add package.json path for script sections
+    if (section.packageJsonPath) {
+      const relativePath = section.workspaceFolder ? 
+        path.relative(section.workspaceFolder.uri.fsPath, section.packageJsonPath) : 
+        section.packageJsonPath;
+      sectionId += `-${relativePath}`;
+    }
+    
+    // Add makefile path for makefile sections
+    if (section.makefilePath) {
+      const relativePath = section.workspaceFolder ? 
+        path.relative(section.workspaceFolder.uri.fsPath, section.makefilePath) : 
+        section.makefilePath;
+      sectionId += `-${relativePath}`;
+    }
+
+    return sectionId;
+  }
+
+  /**
    * Get the tree item representation of an element
    */
   getTreeItem(element: LaunchTreeItem): vscode.TreeItem {
+    // If this is a section, add hidden items indicator if needed
+    if (element instanceof SectionItem && this.hiddenItemsManager) {
+      // Don't add indicators for the recent items section
+      if (element.sectionType !== SectionType.RECENT) {
+        // Generate the section ID using the helper method
+        const sectionId = LaunchConfigurationProvider.generateSectionId(element);
+        
+        // Check if THIS SPECIFIC section has hidden items
+        // We need to check the hidden items to see if any are from this section
+        const hiddenItems = this.hiddenItemsManager.getHiddenItems();
+        
+        // Filter for items that belong to this section
+        const sectionHiddenItems = hiddenItems.filter(item => {
+          // Match folder
+          if (element.workspaceFolder?.name && item.folder !== element.workspaceFolder.name) {
+            return false;
+          }
+          
+          // Match path for scripts and makefile tasks
+          if (element.packageJsonPath && item.path === element.packageJsonPath) {
+            return true;
+          }
+          
+          if (element.makefilePath && item.path === element.makefilePath) {
+            return true;
+          }
+          
+          // Match section type if paths don't match
+          if (!element.packageJsonPath && !element.makefilePath) {
+            if (element.sectionType === SectionType.SCRIPTS && item.type === 'script') {
+              return true;
+            } else if (element.sectionType === SectionType.LAUNCH_CONFIGURATIONS && item.type === 'configuration') {
+              return true;
+            } else if (element.sectionType === SectionType.JETBRAINS_CONFIGS && item.type === 'jetbrains-run-config') {
+              return true;
+            } else if (element.sectionType === SectionType.MAKEFILE_TASKS && item.type === 'makefile-task') {
+              return true;
+            }
+          }
+          
+          return false;
+        });
+        
+        const hasHiddenItems = sectionHiddenItems.length > 0;
+        
+        if (hasHiddenItems) {
+          // Add hidden items indicator to description
+          if (!element.description) {
+            element.description = `(${sectionHiddenItems.length} hidden)`;
+          }
+          
+          // Add tooltip about hidden items
+          if (element.tooltip) {
+            element.tooltip = `${element.tooltip}\n\nThis section has ${sectionHiddenItems.length} hidden items. Click "Manage Hidden Items" in the title bar to restore them.`;
+          } else {
+            element.tooltip = `This section has ${sectionHiddenItems.length} hidden items. Click "Manage Hidden Items" in the title bar to restore them.`;
+          }
+        }
+      }
+    }
+    
     return element;
+  }
+
+  /**
+   * Determine if a section should be shown based on hidden status
+   */
+  private shouldShowSection(section: SectionItem): boolean {
+    if (!this.hiddenItemsManager) {
+      return true;
+    }
+    
+    // Recent items section is always shown
+    if (section.sectionType === SectionType.RECENT) {
+      return true;
+    }
+    
+    // Use the helper method to generate the section ID
+    const sectionId = LaunchConfigurationProvider.generateSectionId(section);
+    
+    // Log for debugging
+    console.log(`Checking section: ${section.label}, ID: ${sectionId}`);
+    
+    // Check if the section is hidden
+    return !this.hiddenItemsManager.isSectionHidden(sectionId);
+  }
+
+  /**
+   * Determine if an item should be shown based on hidden status
+   */
+  private shouldShowItem(item: LaunchTreeItem): boolean {
+    if (!this.hiddenItemsManager) {
+      return true;
+    }
+    
+    // Section items and recent items are always shown (handled separately)
+    if (item instanceof SectionItem || item instanceof RecentItemsSection || item instanceof RecentItemWrapper) {
+      return true;
+    }
+    
+    // Check if the item is hidden
+    const itemName = 'name' in item ? item.name : ''; // Use type guard to check for name property
+    const itemId = item.id || `${itemName}-${item.contextValue}`;
+    return !this.hiddenItemsManager.isItemHidden(itemId);
   }
 
   /**
@@ -57,31 +246,42 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
    * If element is a section, returns its children (configs or scripts)
    */
   async getChildren(element?: LaunchTreeItem): Promise<LaunchTreeItem[]> {
+    let items: LaunchTreeItem[] = [];
+    
     // If a section item is provided, return its children
     if (element instanceof SectionItem) {
       if (element.sectionType === SectionType.LAUNCH_CONFIGURATIONS && element.workspaceFolder) {
-        return this.getLaunchConfigurations(element.workspaceFolder);
+        items = await this.getLaunchConfigurations(element.workspaceFolder);
       } else if (element.sectionType === SectionType.SCRIPTS && element.packageJsonPath && element.workspaceFolder) {
-        return this.getPackageScripts(element.packageJsonPath, element.workspaceFolder);
+        items = await this.getPackageScripts(element.packageJsonPath, element.workspaceFolder);
       } else if (element.sectionType === SectionType.JETBRAINS_CONFIGS && element.workspaceFolder) {
-        return this.getJetBrainsConfigurations(element.workspaceFolder);
+        items = await this.getJetBrainsConfigurations(element.workspaceFolder);
       } else if (element.sectionType === SectionType.MAKEFILE_TASKS && element.makefilePath && element.workspaceFolder) {
-        return this.getMakefileTasks(element.makefilePath, element.workspaceFolder);
+        items = await this.getMakefileTasks(element.makefilePath, element.workspaceFolder);
       }
-      return [];
+      
+      // Filter out hidden items
+      return items.filter(item => this.shouldShowItem(item));
     }
-    
     // If RecentItemsSection, return recent items
-    if (element instanceof RecentItemsSection) {
-      return this.getRecentItems();
+    else if (element instanceof RecentItemsSection) {
+      items = this.getRecentItems();
+      return items;
+    }
+    // If any other item is provided or no item, return the root items (sections)
+    else if (!element) {
+      items = await this.getSections();
+      
+      // Filter out hidden sections
+      return items.filter(item => {
+        if (item instanceof SectionItem) {
+          return this.shouldShowSection(item);
+        }
+        return true;
+      });
     }
     
-    // If any other item is provided or no item, return the root items (sections)
-    if (element) {
-      return [];
-    }
-
-    return this.getSections();
+    return [];
   }
 
   /**

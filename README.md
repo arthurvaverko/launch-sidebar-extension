@@ -1,6 +1,6 @@
 # Launch Sidebar
 
-[![Version](https://img.shields.io/badge/version-0.0.10-blue.svg)](https://marketplace.visualstudio.com/items?itemName=arthurvaverko.launch-sidebar)
+[![Version](https://img.shields.io/badge/version-0.0.11-blue.svg)](https://marketplace.visualstudio.com/items?itemName=arthurvaverko.launch-sidebar)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Install-brightgreen)](https://marketplace.visualstudio.com/items?itemName=arthurvaverko.launch-sidebar)
 
@@ -35,6 +35,14 @@ Launch Sidebar is a VS Code extension that provides a convenient way to manage a
 - 🎨 Contextual icons for each Makefile task (build, test, clean, etc.)
 - 📝 Edit Makefile at the target definition with a single click
 
+### Configuration Management
+- 👁️ Hide rarely used configurations with right-click context menu
+- 📁 Hide entire sections to reduce clutter in complex projects
+- 🔍 Manage hidden items through the dedicated button in the title bar
+- 🔢 Counter badge showing how many items are hidden
+- 🔄 Easily restore hidden items individually or all at once
+- 💾 Persistent storage of hidden items between VS Code sessions
+
 ### User Experience
 - 🌟 Clean, organized sidebar with hierarchical sections
 - 🖼️ Section headers use custom icons: NPM, JetBrains, Makefile (GNU), and VS Code for debug configs
@@ -58,6 +66,18 @@ The extension automatically determines the appropriate package manager for your 
 2. Looks for lock files (package-lock.json, yarn.lock, pnpm-lock.yaml)
 3. Uses the same package manager for all scripts within a workspace for consistency
 4. Falls back to npm when no specific manager is detected
+
+## Hiding and Managing Configurations
+
+To keep your sidebar clean and organized:
+
+1. **Hide an item**: Right-click on any configuration and select "Hide Item"
+2. **Hide an entire section**: Right-click on a section header and select "Hide Section"
+3. **Manage hidden items**: Click the eye icon in the title bar (shows count of hidden items)
+4. **Restore items**: Select an item from the quickpick menu or choose "Restore All"
+
+Hidden items and sections are stored persistently and will remain hidden even after restarting VS Code.
+Tooltips indicate when sections have hidden items, making it easy to remember what's hidden.
 
 ## Customization
 
@@ -98,7 +118,6 @@ Contributions are welcome! Feel free to submit a Pull Request on [GitHub](https:
 ## License
 
 This extension is licensed under the [MIT License](LICENSE).
----
 
 ## Following extension guidelines
 

@@ -4,6 +4,22 @@ All notable changes to the "launch-sidebar" extension will be documented in this
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.12] - 2024-05-xx
+### Added
+- Hide configurations: Right-click on any launch configuration, script, or task to hide it from the sidebar
+- Hide entire sections: Right-click on section headers to hide all items in a section
+- Manage hidden items: New eye icon in the title bar opens a dialog to restore hidden items
+- Persistent storage: Hidden items and sections are remembered between VS Code sessions
+- Bulk restore: Option to restore all hidden items, sections, or both at once
+- Visual indicators: 
+  - Badge showing the number of hidden items in the title bar
+  - Section descriptions showing when items are hidden
+  - Tooltips explaining how to restore hidden items
+
+### Improved
+- Cleaner sidebar with ability to hide rarely used configurations and entire sections
+- Better title bar organization with dedicated manage button and counter badge
+
 ## [0.0.10] - 2024-05-01
 ### Fixed
 - Play, edit, and delete icons no longer appear on the 'Recently Used' section header.
@@ -62,3 +78,6 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Fixed
 - Section icon assignment now uses `vscode.Uri.file` to avoid type errors
+
+## [0.0.11]
+- Fixed issue with JetBrains run configurations not being runnable from Recent Items after reopening VS Code

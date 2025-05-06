@@ -11,7 +11,7 @@ Launch Sidebar is a VS Code extension that creates a dedicated sidebar view allo
 
 The extension provides a unified, hierarchical view organized by workspace folder, with one-click execution capabilities.
 
-Current version: 0.0.3
+Current version: 0.0.12
 
 ## Key Features
 
@@ -20,6 +20,7 @@ Current version: 0.0.3
 - **JetBrains Configurations**: Support for JetBrains IDE run configurations
 - **Visual Indicators**: Color-coded icons for different script types
 - **Workspace Support**: Full multi-root workspace support with file watching for automatic updates
+- **Configuration Management**: Ability to hide rarely used configurations and entire sections
 
 ## Architecture Overview
 
@@ -47,6 +48,7 @@ The main entry point that:
 Located in the `src/models` directory:
 
 - **config-position.ts**: Tracks the exact position of configurations in files
+- **hidden-items-manager.ts**: Manages the list of hidden items and sections
 - **launch-items.ts**: Models for debug configuration items and error items
 - **tree-items.ts**: Models for section headers and script items
 - **jetbrains-items.ts**: Models for JetBrains run configuration items
@@ -59,6 +61,8 @@ Located in the `src/providers` directory:
   - Scanning for configurations and scripts
   - Organizing items into hierarchical sections
   - Parsing launch.json, package.json, and XML configuration files
+  - Filtering hidden items and sections from the view
+  - Adding visual indicators for hidden items
 
 ### Utilities
 
@@ -79,6 +83,9 @@ The extension registers several commands:
 - `launchConfigurations.editScript`: Edit an npm script
 - `launchConfigurations.runJetBrainsConfig`: Run a JetBrains configuration
 - `launchConfigurations.editJetBrainsConfig`: Edit a JetBrains configuration
+- `launchConfigurations.hideItem`: Hide an individual item
+- `launchConfigurations.hideSection`: Hide an entire section
+- `launchConfigurations.manageHiddenItems`: Open a dialog to manage hidden items and sections
 
 ## Data Flow
 
@@ -86,16 +93,17 @@ The extension registers several commands:
    - Creates the `LaunchConfigurationProvider`
    - Registers the TreeView with this provider
    - Sets up file watchers to detect changes to relevant files
+   - Creates the `HiddenItemsManager` to manage hidden items and sections
 
 2. When the sidebar is shown:
    - The provider's `getChildren()` method is called to populate the root level
-   - This returns a list of sections organized by workspace and configuration type
+   - This returns a list of sections organized by workspace and configuration type, filtering out hidden sections
    - When a section is expanded, `getChildren()` is called again with that section
-   - The provider then returns the appropriate items for that section
+   - The provider then returns the appropriate items for that section, filtering out hidden items
 
 3. When a user interacts with an item:
    - VS Code executes the registered command for that action
-   - The command handler performs the appropriate action (launch, edit, etc.)
+   - The command handler performs the appropriate action (launch, edit, hide, etc.)
 
 ## Extension Capabilities
 
@@ -122,6 +130,42 @@ The extension:
 - Supports various configuration types (Go applications, tests, Node.js apps, etc.)
 - Maps XML configurations to appropriate CLI commands
 
+### Configuration Management Support
+
+The extension allows users to:
+- Hide individual items via right-click context menu
+- Hide entire sections via right-click context menu
+- View and restore hidden items through a dedicated dialog
+- See visual indicators when items are hidden
+- Persist hidden item selections between VS Code sessions
+
+## Hidden Items Implementation
+
+The hidden items functionality is implemented with the following components:
+
+1. **HiddenItemsManager** (`src/models/hidden-items-manager.ts`):
+   - Maintains lists of hidden items and sections
+   - Persists hidden items using VS Code's extension context storage
+   - Provides methods to hide, restore, and check items and sections
+   - Fires events when the hidden items list changes
+
+2. **Launch Configuration Provider** (`src/providers/launch-configuration-provider.ts`):
+   - Filters out hidden items and sections from the tree view
+   - Adds visual indicators to sections with hidden items
+   - Updates the title bar icon to show the number of hidden items
+   - Uses a consistent ID generation scheme to uniquely identify sections
+
+3. **Extension Entry Point** (`src/extension.ts`):
+   - Registers commands for hiding items and sections
+   - Manages the dialog for restoring hidden items
+   - Handles proxy commands for the title bar
+
+Section IDs are generated with a consistent scheme that includes:
+- Section type (e.g., scripts, launch configurations)
+- Workspace folder name
+- Relative path to the configuration file
+This ensures that each section is uniquely identified, even when multiple sections of the same type exist.
+
 ## File Structure
 
 Key files and directories:
@@ -132,6 +176,7 @@ src/
   ├── test-jetbrains.ts        # Test module for JetBrains config parsing
   ├── models/                  # Tree item classes
   │   ├── config-position.ts   # Position tracking interface
+  │   ├── hidden-items-manager.ts # Hidden items manager
   │   ├── jetbrains-items.ts   # JetBrains configuration items
   │   ├── launch-items.ts      # Debug configuration items
   │   └── tree-items.ts        # Section and script items
@@ -167,6 +212,13 @@ src/
 2. Add any menu associations in `package.json` under `contributes.menus`
 3. Implement the command handler in `registerCommands()` in `extension.ts`
 4. Add the handler to the context subscriptions
+
+### Modifying Hidden Items Functionality
+
+1. Update the `HiddenItemsManager` class in `models/hidden-items-manager.ts`
+2. Modify the provider's filtering logic in `shouldShowItem()` and `shouldShowSection()`
+3. Update command handlers in `extension.ts`
+4. Update the ID generation logic in `generateSectionId()` if necessary
 
 ## Known Issues and Future Improvements
 

@@ -15,6 +15,8 @@ import { LaunchConfigurationProvider } from './providers/launch-configuration-pr
 import { RecentItemsManager, LaunchItem } from './models/recent-items';
 import { RecentItemWrapper } from './models/recent-items-section';
 import { MakefileTaskItem } from './models/makefile-task-item';
+import { HiddenItemsManager, HiddenItem } from './models/hidden-items-manager';
+import { SectionItem, SectionType } from './models/section-item';
 
 // Create a dedicated output channel for logging
 export const outputChannel = vscode.window.createOutputChannel('Launch Sidebar');
@@ -204,9 +206,16 @@ export function activate(context: vscode.ExtensionContext) {
     logInfo('Creating RecentItemsManager');
     const recentItemsManager = new RecentItemsManager(context);
     
+    // Create the hidden items manager
+    logInfo('Creating HiddenItemsManager');
+    const hiddenItemsManager = new HiddenItemsManager(context);
+    
     // Create tree data provider and register views
     logInfo('Creating LaunchConfigurationProvider');
     const launchProvider = new LaunchConfigurationProvider(recentItemsManager);
+    
+    // Set the hidden items manager reference in the provider
+    launchProvider.setHiddenItemsManager(hiddenItemsManager);
     
     // Initialize the static RecentItemsManager reference
     logInfo('Setting up RecentItemWrapper static references');
@@ -293,32 +302,27 @@ export function activate(context: vscode.ExtensionContext) {
       })
     );
     
-    // Register all commands
-    logInfo('Registering additional commands');
-    registerCommands(context, launchProvider, recentItemsManager);
+    // Register commands for the extension
+    registerCommands(context, launchProvider, recentItemsManager, hiddenItemsManager);
     
-    // Setup file watchers
-    logInfo('Setting up file watchers');
+    // Set up file watchers
     setupFileWatchers(context, launchProvider);
     
-    // Initial refresh
-    logInfo('Performing initial refresh');
-    launchProvider.refresh();
-    
-    logInfo('=== Launch Sidebar Extension Activated ===');
+    logInfo('Launch Sidebar Extension successfully activated');
   } catch (error) {
-    logError(`Error during activation: ${error}`);
-    console.error(error);
+    logError(`Error activating extension: ${error}`);
+    vscode.window.showErrorMessage(`Launch Sidebar: Error activating extension: ${error}`);
   }
 }
 
 /**
- * Registers all commands used by the extension
+ * Register commands for the extension
  */
 function registerCommands(
   context: vscode.ExtensionContext,
   launchConfigurationProvider: LaunchConfigurationProvider,
-  recentItemsManager: RecentItemsManager
+  recentItemsManager: RecentItemsManager,
+  hiddenItemsManager: HiddenItemsManager
 ): void {
   // Command: Refresh configuration list
   const refreshCommand = vscode.commands.registerCommand('launchConfigurations.refresh', () => {
@@ -551,6 +555,163 @@ function registerCommands(
     }
   });
   
+  // Add command to hide an item
+  context.subscriptions.push(
+    vscode.commands.registerCommand('launchConfigurations.hideItem', (item: LaunchConfigurationItem | ScriptItem | JetBrainsRunConfigItem | MakefileTaskItem) => {
+      logInfo(`Hiding item: ${item.name}`);
+      
+      // Create a hidden item object
+      const hiddenItem: HiddenItem = {
+        id: item.id || `${item.name}-${item.contextValue}`,
+        name: item.name,
+        type: item.contextValue || '',
+        path: getItemPath(item),
+        folder: item.workspaceFolder?.name
+      };
+      
+      // Add to hidden items
+      hiddenItemsManager.hideItem(hiddenItem);
+      
+      // Refresh the tree view
+      launchConfigurationProvider.refresh();
+    })
+  );
+  
+  // Add command to hide a section
+  context.subscriptions.push(
+    vscode.commands.registerCommand('launchConfigurations.hideSection', (section: SectionItem) => {
+      logInfo(`Hiding section: ${section.label} (${section.sectionType})`);
+      
+      // Use the shared helper method to generate the section ID
+      const sectionId = LaunchConfigurationProvider.generateSectionId(section);
+      
+      // Log the exact section ID for debugging
+      logInfo(`Section ID: ${sectionId}`);
+      
+      // Create a hidden section object
+      const hiddenSection: HiddenItem = {
+        id: sectionId,
+        name: section.label as string,
+        type: section.sectionType,
+        folder: section.workspaceFolder?.name,
+        path: section.packageJsonPath || section.makefilePath,
+        isSection: true
+      };
+      
+      // Add to hidden sections
+      hiddenItemsManager.hideSection(hiddenSection);
+      
+      // Refresh the tree view
+      launchConfigurationProvider.refresh();
+    })
+  );
+  
+  // Add command to manage hidden items
+  context.subscriptions.push(
+    vscode.commands.registerCommand('launchConfigurations.manageHiddenItems', async () => {
+      logInfo('Opening hidden items management dialog');
+      
+      const hiddenItems = hiddenItemsManager.getHiddenItems();
+      const hiddenSections = hiddenItemsManager.getHiddenSections();
+      const totalHidden = hiddenItems.length + hiddenSections.length;
+      
+      if (totalHidden === 0) {
+        // Show an informative message with instructions about how to hide items
+        vscode.window.showInformationMessage(
+          'No hidden items or sections to manage. Right-click on an item or section to hide it.'
+        );
+        return;
+      }
+      
+      // Create quick pick items for hidden individual items
+      const itemQuickPickItems = hiddenItems.map(item => ({
+        label: `$(eye-closed) ${item.name}`,
+        description: item.folder ? `in ${item.folder}` : '',
+        detail: `Type: ${item.type}`,
+        item: item,
+        isSection: false
+      }));
+      
+      // Create quick pick items for hidden sections
+      const sectionQuickPickItems = hiddenSections.map(section => ({
+        label: `$(folder) ${section.name}`,
+        description: section.folder ? `in ${section.folder}` : '',
+        detail: `Section: ${section.type}`,
+        item: section,
+        isSection: true
+      }));
+      
+      // Combine all quick pick items
+      const allQuickPickItems = [...sectionQuickPickItems, ...itemQuickPickItems];
+      
+      // Add options to restore all
+      allQuickPickItems.push({
+        label: 'Restore All Hidden Items and Sections',
+        description: '',
+        detail: `Will restore ${hiddenItems.length} items and ${hiddenSections.length} sections`,
+        item: { id: 'restore-all', name: 'Restore All', type: 'special' },
+        isSection: false
+      });
+      
+      if (hiddenSections.length > 0) {
+        allQuickPickItems.push({
+          label: 'Restore All Hidden Sections',
+          description: '',
+          detail: `Will restore ${hiddenSections.length} sections`,
+          item: { id: 'restore-all-sections', name: 'Restore All Sections', type: 'special' },
+          isSection: true
+        });
+      }
+      
+      if (hiddenItems.length > 0) {
+        allQuickPickItems.push({
+          label: 'Restore All Hidden Items',
+          description: '',
+          detail: `Will restore ${hiddenItems.length} items`,
+          item: { id: 'restore-all-items', name: 'Restore All Items', type: 'special' },
+          isSection: false
+        });
+      }
+      
+      // Show quick pick
+      const selectedItem = await vscode.window.showQuickPick(allQuickPickItems, {
+        title: `Manage Hidden Items (${totalHidden} hidden)`,
+        placeHolder: 'Select an item to restore',
+        canPickMany: false
+      });
+      
+      if (!selectedItem) {
+        return;
+      }
+      
+      // Handle selection
+      if (selectedItem.item.id === 'restore-all') {
+        // Restore all items and sections
+        hiddenItemsManager.clearAllHidden();
+        vscode.window.showInformationMessage('All hidden items and sections have been restored.');
+      } else if (selectedItem.item.id === 'restore-all-sections') {
+        // Restore all sections
+        hiddenItemsManager.clearHiddenSections();
+        vscode.window.showInformationMessage('All hidden sections have been restored.');
+      } else if (selectedItem.item.id === 'restore-all-items') {
+        // Restore all items
+        hiddenItemsManager.clearHiddenItems();
+        vscode.window.showInformationMessage('All hidden items have been restored.');
+      } else if (selectedItem.isSection) {
+        // Restore a specific section
+        hiddenItemsManager.restoreSection(selectedItem.item.id);
+        vscode.window.showInformationMessage(`Section "${selectedItem.item.name}" has been restored.`);
+      } else {
+        // Restore a specific item
+        hiddenItemsManager.restoreItem(selectedItem.item.id);
+        vscode.window.showInformationMessage(`Item "${selectedItem.item.name}" has been restored.`);
+      }
+      
+      // Refresh the tree view
+      launchConfigurationProvider.refresh();
+    })
+  );
+  
   // Register all commands
   context.subscriptions.push(
     refreshCommand,
@@ -564,6 +725,32 @@ function registerCommands(
     runMakefileTaskCommand,
     editMakefileTaskCommand
   );
+  
+  // Register the proxy command for the title bar that redirects to manageHiddenItems
+  context.subscriptions.push(
+    vscode.commands.registerCommand('launchConfigurations.titleBarManageHiddenItems', async () => {
+      // Forward to the actual manage hidden items command
+      await vscode.commands.executeCommand('launchConfigurations.manageHiddenItems');
+    })
+  );
+}
+
+/**
+ * Helper function to get the file path from various item types
+ */
+function getItemPath(item: LaunchConfigurationItem | ScriptItem | JetBrainsRunConfigItem | MakefileTaskItem): string | undefined {
+  if (item instanceof ScriptItem) {
+    return item.packageJsonPath;
+  } else if (item instanceof JetBrainsRunConfigItem) {
+    // JetBrains items might store the path differently, check its properties
+    return (item as any).xmlPath || (item as any).filePath || (item as any).path;
+  } else if (item instanceof MakefileTaskItem) {
+    return item.makefilePath;
+  } else if (item instanceof LaunchConfigurationItem) {
+    // Launch configuration items might store the path differently
+    return (item as any).configurationFilePath || (item as any).filePath || (item as any).path;
+  }
+  return undefined;
 }
 
 /**

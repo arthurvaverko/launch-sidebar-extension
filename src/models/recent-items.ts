@@ -36,6 +36,16 @@ interface SerializedRecentItem {
   workspaceFolderPath?: string;
   makefilePath?: string;
   recipe?: string;
+  // Additional JetBrains properties
+  packagePath?: string;
+  cmdString?: string;
+  workingDirectory?: string;
+  scriptText?: string;
+  interpreter?: string;
+  executeInTerminal?: boolean;
+  executeScriptFile?: boolean;
+  goParameters?: string;
+  envVars?: Record<string, string>;
 }
 
 /**
@@ -191,7 +201,16 @@ export class RecentItemsManager {
               item.name,
               item.type,
               item.xmlFilePath,
-              workspaceFolder
+              workspaceFolder,
+              item.packagePath,
+              item.cmdString,
+              item.workingDirectory,
+              item.scriptText,
+              item.interpreter,
+              item.executeInTerminal,
+              item.executeScriptFile,
+              item.goParameters,
+              item.envVars
             ));
             loadedCount++;
           } else if (item.itemType === 'makefile-task' && item.makefilePath && workspaceFolder) {
@@ -245,6 +264,16 @@ export class RecentItemsManager {
           baseItem.packageJsonPath = item.packageJsonPath;
         } else if (item instanceof JetBrainsRunConfigItem) {
           baseItem.xmlFilePath = item.xmlFilePath;
+          // Save all the additional properties needed for execution
+          baseItem.packagePath = item.packagePath;
+          baseItem.cmdString = item.cmdString;
+          baseItem.workingDirectory = item.workingDirectory;
+          baseItem.scriptText = item.scriptText;
+          baseItem.interpreter = item.interpreter;
+          baseItem.executeInTerminal = item.executeInTerminal;
+          baseItem.executeScriptFile = item.executeScriptFile;
+          baseItem.goParameters = item.goParameters;
+          baseItem.envVars = item.envVars;
         } else if (item instanceof MakefileTaskItem) {
           baseItem.makefilePath = item.makefilePath;
           baseItem.recipe = item.recipe;

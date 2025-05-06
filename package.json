@@ -3,7 +3,7 @@
   "displayName": "Launch Sidebar",
   "description": "View and quickly launch debug configurations from a sidebar",
   "publisher": "arthurvaverko",
-  "version": "0.0.10",
+  "version": "0.0.12",
   "icon": "resources/logo-large.png",
   "repository": {
     "type": "git",
@@ -44,6 +44,26 @@
         "command": "launchConfigurations.refresh",
         "title": "Refresh",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "launchConfigurations.manageHiddenItems",
+        "title": "Manage Hidden Items",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "launchConfigurations.titleBarManageHiddenItems",
+        "title": "Manage Hidden Items",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "launchConfigurations.hideItem",
+        "title": "Hide Item",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "launchConfigurations.hideSection",
+        "title": "Hide Section",
+        "icon": "$(eye-closed)"
       },
       {
         "command": "launchConfigurations.launch",
@@ -112,6 +132,11 @@
           "command": "launchConfigurations.refresh",
           "when": "view == launchConfigurations",
           "group": "navigation"
+        },
+        {
+          "command": "launchConfigurations.titleBarManageHiddenItems",
+          "when": "view == launchConfigurations",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -124,6 +149,16 @@
           "command": "launchConfigurations.edit",
           "when": "view == launchConfigurations && viewItem == configuration",
           "group": "inline"
+        },
+        {
+          "command": "launchConfigurations.hideItem",
+          "when": "view == launchConfigurations && viewItem == configuration",
+          "group": "1_modification"
+        },
+        {
+          "command": "launchConfigurations.hideSection",
+          "when": "view == launchConfigurations && viewItem == section && viewItem != section-recent-items",
+          "group": "1_modification"
         },
         {
           "command": "launch-sidebar.runRecentOriginalItem",
@@ -146,6 +181,11 @@
           "group": "inline"
         },
         {
+          "command": "launchConfigurations.hideItem",
+          "when": "view == launchConfigurations && viewItem == script",
+          "group": "1_modification"
+        },
+        {
           "command": "launchConfigurations.runJetBrainsConfig",
           "when": "view == launchConfigurations && viewItem == jetbrains-run-config",
           "group": "inline"
@@ -154,6 +194,11 @@
           "command": "launchConfigurations.editJetBrainsConfig",
           "when": "view == launchConfigurations && viewItem == jetbrains-run-config",
           "group": "inline"
+        },
+        {
+          "command": "launchConfigurations.hideItem",
+          "when": "view == launchConfigurations && viewItem == jetbrains-run-config",
+          "group": "1_modification"
         },
         {
           "command": "launchConfigurations.clearRecentItems",
@@ -174,6 +219,11 @@
           "command": "launchConfigurations.editMakefileTask",
           "when": "view == launchConfigurations && viewItem == makefile-task",
           "group": "inline"
+        },
+        {
+          "command": "launchConfigurations.hideItem",
+          "when": "view == launchConfigurations && viewItem == makefile-task",
+          "group": "1_modification"
         }
       ]
     }
