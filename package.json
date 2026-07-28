@@ -3,7 +3,7 @@
   "displayName": "Launch Sidebar",
   "description": "View and quickly launch debug configurations from a sidebar",
   "publisher": "arthurvaverko",
-  "version": "0.0.12",
+  "version": "0.1.0",
   "icon": "resources/logo-large.png",
   "repository": {
     "type": "git",
@@ -15,9 +15,6 @@
   "categories": [
     "Other",
     "Debuggers"
-  ],
-  "activationEvents": [
-    "onView:launchConfigurations"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -47,11 +44,6 @@
       },
       {
         "command": "launchConfigurations.manageHiddenItems",
-        "title": "Manage Hidden Items",
-        "icon": "$(eye-closed)"
-      },
-      {
-        "command": "launchConfigurations.titleBarManageHiddenItems",
         "title": "Manage Hidden Items",
         "icon": "$(eye-closed)"
       },
@@ -134,7 +126,7 @@
           "group": "navigation"
         },
         {
-          "command": "launchConfigurations.titleBarManageHiddenItems",
+          "command": "launchConfigurations.manageHiddenItems",
           "when": "view == launchConfigurations",
           "group": "navigation"
         }
@@ -247,11 +239,11 @@
     "@typescript-eslint/parser": "^8.28.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
-    "@vscode/vsce": "^2.24.0",
+    "@vscode/vsce": "^3.9.2",
     "eslint": "^9.23.0",
     "typescript": "^5.8.2"
   },
   "dependencies": {
-    "fast-xml-parser": "^5.2.1"
+    "fast-xml-parser": "^5.10.1"
   }
 }

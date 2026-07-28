@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { logError } from '../extension';
 
 /**
  * Package manager types supported by the extension
@@ -69,7 +70,7 @@ export function detectPackageManager(packageJsonPath: string, rootLockfileManage
         }
       } catch (err) {
         // If we can't parse package.json, continue to next detection method
-        console.error(`Error parsing package.json at ${packageJsonPath}:`, err);
+        logError(`Error parsing package.json at ${packageJsonPath}: ${err}`);
       }
     }
     
@@ -102,7 +103,7 @@ export function detectPackageManager(packageJsonPath: string, rootLockfileManage
     // Strategy 3: Fall back to npm
     return 'npm';
   } catch (err) {
-    console.error(`Error detecting package manager for ${packageJsonPath}:`, err);
+    logError(`Error detecting package manager for ${packageJsonPath}: ${err}`);
     return 'npm'; // Default fallback
   }
 }

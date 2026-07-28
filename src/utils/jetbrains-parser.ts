@@ -33,7 +33,9 @@ export class JetBrainsRunConfigParser {
     ignoreAttributes: false,
     attributeNamePrefix: '',
     isArray: (name, jpath, isLeafNode, isAttribute) => {
-      if (name === 'component' || name === 'configuration' || name === 'option') return true;
+      if (name === 'component' || name === 'configuration' || name === 'option') {
+        return true;
+      }
       return false;
     },
     parseAttributeValue: true
@@ -292,7 +294,9 @@ export class JetBrainsRunConfigParser {
         const name = option.name;
         const value = option.value;
         
-        if (!name || value === undefined) continue;
+        if (!name || value === undefined) {
+          continue;
+        }
         
         // Extract script text (inline script)
         if (name === 'SCRIPT_TEXT') {

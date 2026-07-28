@@ -179,14 +179,6 @@ export class HiddenItemsManager {
   }
 
   /**
-   * Get total count of hidden items and sections
-   * @returns Total count
-   */
-  public getTotalHiddenCount(): number {
-    return this._hiddenItems.length + this._hiddenSections.length;
-  }
-  
-  /**
    * Clear all hidden items
    */
   public clearHiddenItems(): void {
