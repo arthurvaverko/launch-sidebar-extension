@@ -182,12 +182,14 @@ src/
   ├── providers/               # Data providers
   │   └── launch-configuration-provider.ts  # Main tree data provider
   ├── utils/                   # Helper utilities
+  │   ├── jetbrains-command.ts # Pure command construction for JetBrains configs
   │   ├── jetbrains-parser.ts  # JetBrains XML parser
   │   ├── makefile-parser.ts   # Pure Makefile target parsing (no vscode import)
   │   ├── package-manager.ts   # Package manager detection
   │   └── script-icons.ts      # Icon determination for scripts
   └── test/                    # Tests
       ├── activation.test.ts   # Activation smoke tests (see note below)
+      ├── jetbrains-command.test.ts
       ├── jetbrains-parser.test.ts
       ├── makefile-parser.test.ts
       ├── package-manager.test.ts

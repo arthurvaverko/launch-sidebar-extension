@@ -10,6 +10,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Makefile parsing: variable assignments such as `VERSION:=1.0` were listed as runnable tasks, while targets containing dots (`build.all:`) and multiple targets on one line (`a b c:`) were missed.
 - Makefile tasks now show their recipe, which was previously always empty. Indented comments and blank lines inside a recipe no longer truncate it.
 - JetBrains run configurations: environment variables were injected with POSIX `export` statements, which broke on Windows shells and could break out of quoting. They are now passed to the terminal directly. Script and task names are also quoted when interpolated into shell commands.
+- JetBrains shell configurations set to run a script file ignored that setting and ran the script's arguments as a command instead, so a configuration with `SCRIPT_OPTIONS="--force"` ran `--force` on its own. Shell configurations now run their script through the configured interpreter, with the options passed as arguments to it.
+- JetBrains Go test configurations ran their test flags as a bare command (`-run TestFoo`) instead of `go test -run TestFoo <package>`.
+- Environment variables declared on a JetBrains configuration were only read for Go application configurations; shell and test configurations silently dropped them. They are now read for every configuration type, and values that look numeric (`value="8080"`) stay strings.
 
 ### Changed
 - Nested `package.json` discovery now uses VS Code's native async file search instead of a synchronous directory walk on every tree refresh, which is noticeably faster in monorepos.
