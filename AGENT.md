@@ -11,7 +11,7 @@ Launch Sidebar is a VS Code extension that creates a dedicated sidebar view allo
 
 The extension provides a unified, hierarchical view organized by workspace folder, with one-click execution capabilities.
 
-Current version: 0.0.12
+Current version: 0.1.0
 
 ## Key Features
 
@@ -173,7 +173,6 @@ Key files and directories:
 ```
 src/
   ├── extension.ts             # Main entry point
-  ├── test-jetbrains.ts        # Test module for JetBrains config parsing
   ├── models/                  # Tree item classes
   │   ├── config-position.ts   # Position tracking interface
   │   ├── hidden-items-manager.ts # Hidden items manager
@@ -184,11 +183,26 @@ src/
   │   └── launch-configuration-provider.ts  # Main tree data provider
   ├── utils/                   # Helper utilities
   │   ├── jetbrains-parser.ts  # JetBrains XML parser
+  │   ├── makefile-parser.ts   # Pure Makefile target parsing (no vscode import)
   │   ├── package-manager.ts   # Package manager detection
   │   └── script-icons.ts      # Icon determination for scripts
   └── test/                    # Tests
-      └── extension.test.ts    # Basic test file
+      ├── activation.test.ts   # Activation smoke tests (see note below)
+      ├── jetbrains-parser.test.ts
+      ├── makefile-parser.test.ts
+      ├── package-manager.test.ts
+      └── section-id.test.ts
 ```
+
+### Activation must fail loudly
+
+`activate()` catches, logs and shows any activation error — and then **rethrows it**. Do not
+remove that rethrow. Swallowing it once left the extension half-initialised but reporting
+itself as healthy: a duplicate command registration threw partway through, and everything
+after the throw (including `setupFileWatchers()`) silently never ran, so the sidebar stopped
+auto-refreshing with no visible symptom. `src/test/activation.test.ts` only catches that class
+of bug because activation fails loudly; with the error swallowed the whole suite passes green
+against a broken extension.
 
 ## Common Development Tasks
 

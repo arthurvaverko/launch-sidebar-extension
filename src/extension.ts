@@ -233,6 +233,10 @@ export function activate(context: vscode.ExtensionContext) {
   } catch (error) {
     logError(`Error activating extension: ${error}`);
     vscode.window.showErrorMessage(`Launch Sidebar: Error activating extension: ${error}`);
+    // Rethrow: swallowing this used to leave the extension half-initialised and
+    // looking healthy, which is how a duplicate command registration silently
+    // skipped setupFileWatchers() for a year. A failed activation should fail loudly.
+    throw error;
   }
 }
 
