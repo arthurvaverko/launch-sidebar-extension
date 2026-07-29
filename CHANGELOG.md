@@ -13,6 +13,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Changed
 - Nested `package.json` discovery now uses VS Code's native async file search instead of a synchronous directory walk on every tree refresh, which is noticeably faster in monorepos.
+- A failed activation now reports itself as failed instead of being swallowed, so the extension can no longer end up half-initialised while appearing to work.
 
 ### Removed
 - The extension no longer overrides the global `console` object, which affected other extensions running in the same host process.
