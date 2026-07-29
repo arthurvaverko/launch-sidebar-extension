@@ -158,7 +158,7 @@ export class RecentItemsManager {
       const workspaceFolders = vscode.workspace.workspaceFolders || [];
       logDebug(`Workspace folders detected: ${workspaceFolders.map(f => `${f.name} (${f.uri.fsPath})`).join(', ')}`);
       const serializedItems = this.context.globalState.get<SerializedRecentItem[]>(RECENT_ITEMS_STORAGE_KEY, []);
-      logDebug(`[PERSISTENCE] Found ${serializedItems.length} stored items in key '${RECENT_ITEMS_STORAGE_KEY}': ${JSON.stringify(serializedItems, null, 2)}`);
+      logDebug(`[PERSISTENCE] Found ${serializedItems.length} stored items in key '${RECENT_ITEMS_STORAGE_KEY}'`);
       this.recentItems = [];
       let loadedCount = 0;
       let skippedCount = 0;
@@ -281,7 +281,7 @@ export class RecentItemsManager {
         
         return baseItem;
       });
-      logDebug(`[PERSISTENCE] Saving to key '${RECENT_ITEMS_STORAGE_KEY}': ${JSON.stringify(serializedItems, null, 2)}`);
+      logDebug(`[PERSISTENCE] Saving ${serializedItems.length} items to key '${RECENT_ITEMS_STORAGE_KEY}'`);
       this.context.globalState.update(RECENT_ITEMS_STORAGE_KEY, serializedItems);
       logDebug('Recent items saved successfully');
     } catch (error) {

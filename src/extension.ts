@@ -6,17 +6,16 @@
  */
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 
 import { LaunchConfigurationItem } from './models/launch-items';
 import { ScriptItem } from './models/script-item';
 import { JetBrainsRunConfigItem } from './models/jetbrains-items';
 import { LaunchConfigurationProvider } from './providers/launch-configuration-provider';
-import { RecentItemsManager, LaunchItem } from './models/recent-items';
+import { RecentItemsManager } from './models/recent-items';
 import { RecentItemWrapper } from './models/recent-items-section';
 import { MakefileTaskItem } from './models/makefile-task-item';
 import { HiddenItemsManager, HiddenItem } from './models/hidden-items-manager';
-import { SectionItem, SectionType } from './models/section-item';
+import { SectionItem } from './models/section-item';
 
 // Create a dedicated output channel for logging
 export const outputChannel = vscode.window.createOutputChannel('Launch Sidebar');
@@ -49,71 +48,6 @@ export function logError(message: string): void {
   log(message, 'ERROR');
 }
 
-// Override console.log to redirect all output to our output channel
-const originalConsoleLog = console.log;
-const originalConsoleWarn = console.warn;
-const originalConsoleError = console.error;
-
-console.log = function(...args: any[]) {
-  // Convert all arguments to strings and join them
-  const message = args.map(arg => {
-    if (typeof arg === 'object') {
-      try {
-        return JSON.stringify(arg);
-      } catch (e) {
-        return String(arg);
-      }
-    }
-    return String(arg);
-  }).join(' ');
-  
-  // Log to our output channel
-  logDebug(message);
-  
-  // Also log to the original console.log for development purposes
-  originalConsoleLog.apply(console, args);
-};
-
-console.warn = function(...args: any[]) {
-  // Convert all arguments to strings and join them
-  const message = args.map(arg => {
-    if (typeof arg === 'object') {
-      try {
-        return JSON.stringify(arg);
-      } catch (e) {
-        return String(arg);
-      }
-    }
-    return String(arg);
-  }).join(' ');
-  
-  // Log to our output channel
-  logWarning(message);
-  
-  // Also log to the original console.warn for development purposes
-  originalConsoleWarn.apply(console, args);
-};
-
-console.error = function(...args: any[]) {
-  // Convert all arguments to strings and join them
-  const message = args.map(arg => {
-    if (typeof arg === 'object') {
-      try {
-        return JSON.stringify(arg);
-      } catch (e) {
-        return String(arg);
-      }
-    }
-    return String(arg);
-  }).join(' ');
-  
-  // Log to our output channel
-  logError(message);
-  
-  // Also log to the original console.error for development purposes
-  originalConsoleError.apply(console, args);
-};
-
 /**
  * Terminal manager to track and reuse terminals
  */
@@ -124,33 +58,36 @@ class TerminalManager {
    * Get or create a terminal for a specific task
    * @param name The name of the terminal
    * @param cwd The working directory for the terminal
+   * @param env Optional environment variables to seed the terminal with
    * @returns A terminal instance (either existing or new)
    */
-  public getOrCreateTerminal(name: string, cwd: string): vscode.Terminal {
-    // Create a unique key for this terminal based on name and working directory
-    const terminalKey = `${name}:${cwd}`;
-    
+  public getOrCreateTerminal(name: string, cwd: string, env?: Record<string, string>): vscode.Terminal {
+    // Create a unique key for this terminal based on name, working directory and env.
+    // The env is part of the key so a cached terminal is never reused with stale variables.
+    const terminalKey = `${name}:${cwd}:${env ? JSON.stringify(env) : ''}`;
+
     // Check if we already have this terminal
     if (this.terminals.has(terminalKey)) {
       const terminal = this.terminals.get(terminalKey);
-      
+
       // Verify the terminal still exists (not closed by user)
       if (terminal && this.isTerminalStillAlive(terminal)) {
         log(`Reusing existing terminal: ${name}`);
         return terminal;
       }
     }
-    
+
     // Create a new terminal
     log(`Creating new terminal: ${name} in ${cwd}`);
     const terminal = vscode.window.createTerminal({
       name,
-      cwd
+      cwd,
+      env
     });
-    
+
     // Store it for future reuse
     this.terminals.set(terminalKey, terminal);
-    
+
     return terminal;
   }
   
@@ -243,22 +180,6 @@ export function activate(context: vscode.ExtensionContext) {
     logInfo('Registering tree view and commands');
     context.subscriptions.push(
       vscode.window.registerTreeDataProvider('launchConfigurations', launchProvider),
-      vscode.commands.registerCommand('launch-sidebar.refreshScripts', () => {
-        logDebug('Refresh scripts command called');
-        launchProvider.refresh();
-      }),
-      vscode.commands.registerCommand('launch-sidebar.runScript', (script: ScriptItem | JetBrainsRunConfigItem | LaunchConfigurationItem) => {
-        logInfo(`Running script: ${script.name}`);
-        script.execute();
-        // Add to recent items
-        logDebug(`Adding ${script.name} to recent items`);
-        recentItemsManager.addRecentItem(script);
-        launchProvider.refresh();
-      }),
-      vscode.commands.registerCommand('launch-sidebar.runRecentItem', (wrapper: RecentItemWrapper) => {
-        logInfo(`Running recent item: ${wrapper.originalItem?.name}`);
-        wrapper.execute();
-      }),
       vscode.commands.registerCommand('launch-sidebar.runRecentOriginalItem', (item: any) => {
         const original = item && item.originalItem ? item.originalItem : item;
         logInfo(`Running original recent item: ${original?.name}`);
@@ -394,7 +315,7 @@ function registerCommands(
       const terminal = terminalManager.getOrCreateTerminal(`${packageManager}: ${item.name}`, packageDir);
       
       // Run the script using the appropriate package manager
-      terminal.sendText(`${packageManager} run ${item.name}`);
+      terminal.sendText(`${packageManager} run ${quoteArg(item.name)}`);
       terminal.show();
       
       // Add to recent items
@@ -441,10 +362,11 @@ function registerCommands(
     try {
       // Get the directory containing the configuration
       const workDir = item.workingDirectory || item.workspaceFolder.uri.fsPath;
-      
-      // Create a terminal for running the configuration
-      const terminal = terminalManager.getOrCreateTerminal(`JetBrains: ${item.name}`, workDir);
-      
+
+      // Create a terminal for running the configuration, seeding any configured env vars
+      // at creation time so this works on every shell (POSIX, PowerShell, cmd)
+      const terminal = terminalManager.getOrCreateTerminal(`JetBrains: ${item.name}`, workDir, item.envVars);
+
       // Construct the command to run
       let command = '';
       
@@ -478,13 +400,6 @@ function registerCommands(
         command = item.scriptText;
       } else {
         throw new Error('Unable to determine how to run this configuration');
-      }
-      
-      // Set environment variables if defined
-      if (item.envVars && Object.keys(item.envVars).length > 0) {
-        for (const [key, value] of Object.entries(item.envVars)) {
-          terminal.sendText(`export ${key}="${value}"`);
-        }
       }
       
       // Run the command in the terminal
@@ -525,7 +440,7 @@ function registerCommands(
     try {
       const makefileDir = path.dirname(item.makefilePath);
       const terminal = terminalManager.getOrCreateTerminal(`make: ${item.name}`, makefileDir);
-      terminal.sendText(`make ${item.name}`);
+      terminal.sendText(`make ${quoteArg(item.name)}`);
       terminal.show();
       // Add to recent items
       recentItemsManager.addRecentItem(item);
@@ -725,14 +640,16 @@ function registerCommands(
     runMakefileTaskCommand,
     editMakefileTaskCommand
   );
-  
-  // Register the proxy command for the title bar that redirects to manageHiddenItems
-  context.subscriptions.push(
-    vscode.commands.registerCommand('launchConfigurations.titleBarManageHiddenItems', async () => {
-      // Forward to the actual manage hidden items command
-      await vscode.commands.executeCommand('launchConfigurations.manageHiddenItems');
-    })
-  );
+}
+
+/**
+ * Quote a script/target name so names containing spaces or shell metacharacters
+ * cannot break out of the command line.
+ * Double quotes are understood by POSIX shells, PowerShell and cmd alike; a literal
+ * quote has no portable escape, and is not valid in a script/target name, so it is dropped.
+ */
+function quoteArg(value: string): string {
+  return `"${value.replace(/"/g, '')}"`;
 }
 
 /**

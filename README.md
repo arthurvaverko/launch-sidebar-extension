@@ -1,6 +1,6 @@
 # Launch Sidebar
 
-[![Version](https://img.shields.io/badge/version-0.0.11-blue.svg)](https://marketplace.visualstudio.com/items?itemName=arthurvaverko.launch-sidebar)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://marketplace.visualstudio.com/items?itemName=arthurvaverko.launch-sidebar)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Install-brightgreen)](https://marketplace.visualstudio.com/items?itemName=arthurvaverko.launch-sidebar)
 

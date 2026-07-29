@@ -18,8 +18,6 @@ export class RecentItemsSection extends vscode.TreeItem {
     this.iconPath = new vscode.ThemeIcon('history');
     this.tooltip = 'Recently used launch configurations, scripts, and JetBrains run configurations';
     this.sectionType = SectionType.RECENT;
-    // Debug: log contextValue and stack trace
-    console.log('[Launch Sidebar] RecentItemsSection constructed with contextValue:', this.contextValue);
   }
 
   public readonly sectionType: SectionType;

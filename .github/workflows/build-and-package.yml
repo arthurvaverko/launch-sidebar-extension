@@ -17,16 +17,16 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
-        node-version: 18.x
+        node-version: 20.x
         cache: 'npm'
     
     - name: Install dependencies
-      run: npm install
+      run: npm ci
     
     - name: Lint
       run: npm run lint
@@ -48,21 +48,21 @@ jobs:
         
   publish:
     needs: build
-    if: success() && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
+    if: success() && github.event_name == 'release'
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18.x
+          node-version: 20.x
           cache: 'npm'
       
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         
       - name: Publish to Visual Studio Marketplace
         run: npx @vscode/vsce publish -p ${{ secrets.VSCE_PAT }}

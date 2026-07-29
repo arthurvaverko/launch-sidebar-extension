@@ -9,10 +9,12 @@ import { ScriptItem } from '../models/script-item';
 import { SectionItem, SectionType } from '../models/section-item';
 import { RecentItemsSection, RecentItemWrapper } from '../models/recent-items-section';
 import { RecentItemsManager } from '../models/recent-items';
-import { detectPackageManager, detectRootPackageManager, PackageManager } from '../utils/package-manager';
+import { detectPackageManager, detectRootPackageManager } from '../utils/package-manager';
 import { JetBrainsRunConfigParser } from '../utils/jetbrains-parser';
+import { parseMakefileTargets } from '../utils/makefile-parser';
 import { MakefileTaskItem } from '../models/makefile-task-item';
 import { HiddenItemsManager } from '../models/hidden-items-manager';
+import { logError } from '../extension';
 
 // Union type for our tree items
 export type LaunchTreeItem = LaunchConfigurationItem | LaunchConfigurationErrorItem | ScriptItem | SectionItem | JetBrainsRunConfigItem | RecentItemsSection | RecentItemWrapper | MakefileTaskItem;
@@ -27,75 +29,27 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
   readonly onDidChangeTreeData: vscode.Event<LaunchTreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
   private recentItemsManager: RecentItemsManager;
   private hiddenItemsManager?: HiddenItemsManager;
-  private titleBarCommand?: vscode.Disposable;
-  
+
   constructor(recentItemsManager: RecentItemsManager) {
     this.recentItemsManager = recentItemsManager;
     // Listen for changes to recent items
-    this.recentItemsManager.onDidChangeRecentItems(() => {
-      console.log('Recent items changed, refreshing tree view');
-      this.refresh();
-    });
+    this.recentItemsManager.onDidChangeRecentItems(() => this.refresh());
   }
-  
+
   /**
    * Set the hidden items manager reference
    */
   public setHiddenItemsManager(hiddenItemsManager: HiddenItemsManager): void {
     this.hiddenItemsManager = hiddenItemsManager;
     // Listen for changes to hidden items
-    this.hiddenItemsManager.onDidChangeHiddenItems(() => {
-      console.log('Hidden items changed, refreshing tree view');
-      this.refresh();
-      // Update title bar indicator
-      this.updateTitleBarIndicator();
-    });
-    
-    // Initial update of the title bar indicator
-    this.updateTitleBarIndicator();
+    this.hiddenItemsManager.onDidChangeHiddenItems(() => this.refresh());
   }
-  
-  /**
-   * Update the title bar indicator to show hidden item count
-   */
-  private updateTitleBarIndicator(): void {
-    // Clean up previous command if it exists
-    if (this.titleBarCommand) {
-      this.titleBarCommand.dispose();
-    }
-    
-    // Skip if no hidden items manager
-    if (!this.hiddenItemsManager) {
-      return;
-    }
-    
-    // Get total hidden count
-    const totalHidden = this.hiddenItemsManager.getTotalHiddenCount();
-    
-    // Always show the eye icon in the title bar
-    // If there are hidden items, add a badge with the count
-    const iconTitle = totalHidden > 0 ? 
-      `$(eye-closed) Manage Hidden Items (${totalHidden})` : 
-      `$(eye-closed) Manage Hidden Items`;
-    
-    // Register the command with the appropriate title
-    this.titleBarCommand = vscode.commands.registerCommand('launchConfigurations.titleBarManageHiddenItems', async () => {
-      // Execute the actual command
-      await vscode.commands.executeCommand('launchConfigurations.manageHiddenItems');
-    });
-    
-    // Update the command title to include the count if needed
-    vscode.commands.executeCommand('setContext', 'launchSidebar.hiddenItemsTitle', iconTitle);
-    vscode.commands.executeCommand('setContext', 'launchSidebar.hasHiddenItems', totalHidden > 0);
-    vscode.commands.executeCommand('setContext', 'launchSidebar.hiddenItemsCount', totalHidden);
-  }
-  
+
   /**
    * Refresh the tree view
    * Triggers a reload of all configurations and scripts
    */
   refresh(): void {
-    console.log('LaunchConfigurationProvider.refresh() called');
     this._onDidChangeTreeData.fire();
   }
 
@@ -138,9 +92,6 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
     if (element instanceof SectionItem && this.hiddenItemsManager) {
       // Don't add indicators for the recent items section
       if (element.sectionType !== SectionType.RECENT) {
-        // Generate the section ID using the helper method
-        const sectionId = LaunchConfigurationProvider.generateSectionId(element);
-        
         // Check if THIS SPECIFIC section has hidden items
         // We need to check the hidden items to see if any are from this section
         const hiddenItems = this.hiddenItemsManager.getHiddenItems();
@@ -213,10 +164,7 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
     
     // Use the helper method to generate the section ID
     const sectionId = LaunchConfigurationProvider.generateSectionId(section);
-    
-    // Log for debugging
-    console.log(`Checking section: ${section.label}, ID: ${sectionId}`);
-    
+
     // Check if the section is hidden
     return !this.hiddenItemsManager.isSectionHidden(sectionId);
   }
@@ -288,10 +236,7 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
    * Get recent items for the sidebar
    */
   private getRecentItems(): LaunchTreeItem[] {
-    console.log('Getting recent items');
-    const recentItems = this.recentItemsManager.getRecentItems();
-    console.log(`Found ${recentItems.length} recent items`);
-    return recentItems.map(item => new RecentItemWrapper(item));
+    return this.recentItemsManager.getRecentItems().map(item => new RecentItemWrapper(item));
   }
 
   /**
@@ -368,41 +313,30 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
    */
   private async addNestedPackageSections(folder: vscode.WorkspaceFolder, sections: LaunchTreeItem[]): Promise<void> {
     try {
-      const directories = fs.readdirSync(folder.uri.fsPath, { withFileTypes: true });
-      for (const dir of directories) {
-        // Skip node_modules directories
-        if (dir.isDirectory() && dir.name !== 'node_modules') {
-          const nestedPackageJsonPath = path.join(folder.uri.fsPath, dir.name, 'package.json');
-          if (fs.existsSync(nestedPackageJsonPath)) {
-            sections.push(new SectionItem(
-              `${dir.name}: npm Scripts`,
-              SectionType.SCRIPTS,
-              folder,
-              nestedPackageJsonPath
-            ));
-          }
-          
-          // Check one more level
-          const nestedDirPath = path.join(folder.uri.fsPath, dir.name);
-          const nestedDirectories = fs.readdirSync(nestedDirPath, { withFileTypes: true });
-          for (const nestedDir of nestedDirectories) {
-            // Skip node_modules directories at this level too
-            if (nestedDir.isDirectory() && nestedDir.name !== 'node_modules') {
-              const deepNestedPackageJsonPath = path.join(nestedDirPath, nestedDir.name, 'package.json');
-              if (fs.existsSync(deepNestedPackageJsonPath)) {
-                sections.push(new SectionItem(
-                  `${dir.name}/${nestedDir.name}: npm Scripts`,
-                  SectionType.SCRIPTS,
-                  folder,
-                  deepNestedPackageJsonPath
-                ));
-              }
-            }
-          }
-        }
+      // findFiles is async, native, and honours the user's files.exclude/search.exclude.
+      // The two globs cover exactly the one and two directory levels the old walk did.
+      const matches = await vscode.workspace.findFiles(
+        new vscode.RelativePattern(folder, '{*,*/*}/package.json'),
+        '**/node_modules/**'
+      );
+
+      // Sort so the shallower packages come first, as the old directory walk produced
+      const relativePaths = matches
+        .map(uri => path.relative(folder.uri.fsPath, uri.fsPath))
+        .sort();
+
+      for (const relativePath of relativePaths) {
+        // `${dir}: npm Scripts` / `${dir}/${nestedDir}: npm Scripts`
+        const label = `${path.dirname(relativePath).split(path.sep).join('/')}: npm Scripts`;
+        sections.push(new SectionItem(
+          label,
+          SectionType.SCRIPTS,
+          folder,
+          path.join(folder.uri.fsPath, relativePath)
+        ));
       }
     } catch (error) {
-      console.error(`Error scanning for nested package.json files in ${folder.name}:`, error);
+      logError(`Error scanning for nested package.json files in ${folder.name}: ${error}`);
     }
   }
   
@@ -444,11 +378,11 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
             folder.name,
             jsonError.message || String(error)
           ));
-          console.error(`Error parsing launch.json in ${folder.name}:`, error);
+          logError(`Error parsing launch.json in ${folder.name}: ${error}`);
         }
       }
     } catch (error) {
-      console.error(`Error reading launch configurations from ${folder.name}:`, error);
+      logError(`Error reading launch configurations from ${folder.name}: ${error}`);
     }
     
     return items;
@@ -608,7 +542,7 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
         }
       }
     } catch (error) {
-      console.error(`Error reading package.json scripts from ${packageJsonPath}:`, error);
+      logError(`Error reading package.json scripts from ${packageJsonPath}: ${error}`);
     }
     
     return items;
@@ -668,7 +602,7 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
       // No JetBrains configurations found in either location
       return false;
     } catch (err) {
-      console.error(`Error checking for JetBrains run configurations in ${folder.name}:`, err);
+      logError(`Error checking for JetBrains run configurations in ${folder.name}: ${err}`);
       return false;
     }
   }
@@ -706,7 +640,7 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
         ));
       }
     } catch (error) {
-      console.error(`Error reading JetBrains run configurations from ${folder.name}:`, error);
+      logError(`Error reading JetBrains run configurations from ${folder.name}: ${error}`);
     }
     
     return items;
@@ -716,34 +650,14 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
    * Get Makefile tasks from a Makefile
    */
   private async getMakefileTasks(makefilePath: string, folder: vscode.WorkspaceFolder): Promise<LaunchTreeItem[]> {
-    const items: LaunchTreeItem[] = [];
     try {
-      if (fs.existsSync(makefilePath)) {
-        const makefileContent = fs.readFileSync(makefilePath, 'utf8');
-        // Regex to match targets: lines like 'target: ...' not starting with whitespace or '#'
-        const targetRegex = /^(?![ \t#])([a-zA-Z0-9_\-]+):([^=\n]*)/gm;
-        let match;
-        while ((match = targetRegex.exec(makefileContent)) !== null) {
-          const name = match[1];
-          // Find the recipe (lines after the target, indented)
-          const recipeLines: string[] = [];
-          let nextLineIdx = match.index + match[0].length;
-          let nextLineMatch;
-          const lines = makefileContent.slice(nextLineIdx).split('\n');
-          for (const line of lines) {
-            if (/^\s+/.test(line) && !/^\s*#/.test(line)) {
-              recipeLines.push(line.trim());
-            } else {
-              break;
-            }
-          }
-          const recipe = recipeLines.join('\n');
-          items.push(new MakefileTaskItem(name, makefilePath, folder, recipe));
-        }
-      }
+      const content = fs.readFileSync(makefilePath, 'utf8');
+      return parseMakefileTargets(content).map(
+        target => new MakefileTaskItem(target.name, makefilePath, folder, target.recipe)
+      );
     } catch (error) {
-      console.error(`Error reading Makefile tasks from ${makefilePath}:`, error);
+      logError(`Error reading Makefile tasks from ${makefilePath}: ${error}`);
+      return [];
     }
-    return items;
   }
 }
