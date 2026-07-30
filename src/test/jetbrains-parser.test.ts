@@ -119,13 +119,10 @@ suite('JetBrainsRunConfigParser', () => {
     assert.strictEqual(go.envVars?.ENV, 'dev');
   });
 
-  // BUG (documented, not fixed): the XML parser runs with parseAttributeValue: true, so a
-  // numeric env value comes back as a number even though envVars is typed
-  // Record<string, string>. Expected the string '8080'.
-  test('numeric env values are numbers, not strings (current behavior)', () => {
+  test('a numeric-looking env value stays a string', () => {
     const port = byName('Run Server').envVars?.PORT as unknown;
-    assert.strictEqual(typeof port, 'number');
-    assert.strictEqual(port, 8080);
+    assert.strictEqual(typeof port, 'string');
+    assert.strictEqual(port, '8080');
   });
 
   test('go test config maps go_parameters onto command', () => {
@@ -146,21 +143,18 @@ suite('JetBrainsRunConfigParser', () => {
     assert.strictEqual(sh.interpreter, '/bin/zsh');
   });
 
-  // BUG (documented, not fixed): option values are parsed with parseAttributeValue: true,
-  // so value="true" arrives as the boolean true and the `value === 'true'` string
-  // comparison never matches. Both flags are therefore stuck at false, and
-  // extension.ts only takes the "run the script file" branch when executeScriptFile is
-  // true. Expected true for both.
-  test('EXECUTE_IN_TERMINAL / EXECUTE_SCRIPT_FILE are always false (current behavior)', () => {
+  test('EXECUTE_IN_TERMINAL / EXECUTE_SCRIPT_FILE are read as booleans', () => {
     const sh = byName('Seed DB');
-    assert.strictEqual(sh.executeInTerminal, false);
-    assert.strictEqual(sh.executeScriptFile, false);
+    assert.strictEqual(sh.executeInTerminal, true);
+    assert.strictEqual(sh.executeScriptFile, true);
   });
 
-  // GAP (documented, not fixed): processShellConfiguration never reads <envs>, so env vars
-  // declared on a shell configuration are dropped. Expected { DB: 'local' }.
-  test('shell configs drop their env vars (current behavior)', () => {
-    assert.strictEqual(byName('Seed DB').envVars, undefined);
+  test('shell configs keep their env vars', () => {
+    assert.deepStrictEqual(byName('Seed DB').envVars, { DB: 'local' });
+  });
+
+  test('a configuration declaring no envs has undefined envVars', () => {
+    assert.strictEqual(byName('Unit Tests').envVars, undefined);
   });
 
   test('configurations in .idea/runConfigurations are picked up too', async () => {

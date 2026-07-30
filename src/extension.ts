@@ -16,6 +16,7 @@ import { RecentItemWrapper } from './models/recent-items-section';
 import { MakefileTaskItem } from './models/makefile-task-item';
 import { HiddenItemsManager, HiddenItem } from './models/hidden-items-manager';
 import { SectionItem } from './models/section-item';
+import { buildJetBrainsCommand, quoteArg } from './utils/jetbrains-command';
 
 // Create a dedicated output channel for logging
 export const outputChannel = vscode.window.createOutputChannel('Launch Sidebar');
@@ -372,37 +373,9 @@ function registerCommands(
       const terminal = terminalManager.getOrCreateTerminal(`JetBrains: ${item.name}`, workDir, item.envVars);
 
       // Construct the command to run
-      let command = '';
-      
-      if (item.type.includes('GoApplicationRunConfiguration')) {
-        // Special handling for Go Application run configurations
-        if (item.packagePath) {
-          command = `go run`;
-          
-          // Add go_parameters if present
-          if (item.goParameters) {
-            command += ` ${item.goParameters}`;
-          }
-          
-          // Add package path
-          command += ` ${item.packagePath}`;
-          
-          // Add command args if present
-          if (item.cmdString) {
-            command += ` ${item.cmdString}`;
-          }
-        }
-      } else if (item.cmdString) {
-        // Use the command string from the run configuration
-        command = item.cmdString;
-      } else if (item.executeScriptFile && item.packagePath) {
-        // Run a script file with the specified interpreter
-        const interpreter = item.interpreter || 'node';
-        command = `${interpreter} "${item.packagePath}"`;
-      } else if (item.scriptText) {
-        // Run script text directly
-        command = item.scriptText;
-      } else {
+      const command = buildJetBrainsCommand(item);
+
+      if (!command) {
         throw new Error('Unable to determine how to run this configuration');
       }
       
@@ -644,16 +617,6 @@ function registerCommands(
     runMakefileTaskCommand,
     editMakefileTaskCommand
   );
-}
-
-/**
- * Quote a script/target name so names containing spaces or shell metacharacters
- * cannot break out of the command line.
- * Double quotes are understood by POSIX shells, PowerShell and cmd alike; a literal
- * quote has no portable escape, and is not valid in a script/target name, so it is dropped.
- */
-function quoteArg(value: string): string {
-  return `"${value.replace(/"/g, '')}"`;
 }
 
 /**

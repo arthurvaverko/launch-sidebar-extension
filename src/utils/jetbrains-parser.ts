@@ -38,7 +38,11 @@ export class JetBrainsRunConfigParser {
       }
       return false;
     },
-    parseAttributeValue: true
+    // Every attribute in a run configuration is semantically a string: paths, script text,
+    // env values, and "true"/"false" flags. Coercing them turned value="true" into the
+    // boolean true (so `value === 'true'` never matched) and value="8080" into a number
+    // (so envVars held numbers despite being typed Record<string, string>).
+    parseAttributeValue: false
   });
 
   /**
@@ -197,6 +201,13 @@ export class JetBrainsRunConfigParser {
                     xmlFilePath: xmlFile
                   };
                   
+                  // Environment variables are declared the same way regardless of type,
+                  // so read them here rather than in each per-type handler
+                  const envVars = this.parseEnvVars(config);
+                  if (envVars) {
+                    runConfig.envVars = envVars;
+                  }
+
                   // Process configuration based on type
                   if (type === 'ShConfigurationType') {
                     this.processShellConfiguration(config, runConfig, workspaceFolder);
@@ -257,24 +268,34 @@ export class JetBrainsRunConfigParser {
       log(`[JetBrains Parser] Found go parameters: ${runConfig.goParameters}`);
     }
     
-    // Extract environment variables
-    if (configElement.envs && configElement.envs.env) {
-      runConfig.envVars = {};
-      
-      // Handle both array and single env var
-      const envVars = Array.isArray(configElement.envs.env) 
-        ? configElement.envs.env 
-        : [configElement.envs.env];
-        
-      for (const env of envVars) {
-        if (env.name && env.value !== undefined) {
-          runConfig.envVars[env.name] = env.value;
-          log(`[JetBrains Parser] Found env var: ${env.name}=${env.value}`);
-        }
+  }
+
+  /**
+   * Extract the <envs><env name=".." value=".."/></envs> block of a configuration.
+   * Applies to every configuration type, not just Go.
+   * @returns The environment variables, or undefined if the configuration declares none
+   */
+  private static parseEnvVars(configElement: any): Record<string, string> | undefined {
+    if (!configElement.envs || !configElement.envs.env) {
+      return undefined;
+    }
+
+    // Handle both a single env element and a list of them
+    const envElements = Array.isArray(configElement.envs.env)
+      ? configElement.envs.env
+      : [configElement.envs.env];
+
+    const envVars: Record<string, string> = {};
+    for (const env of envElements) {
+      if (env.name && env.value !== undefined) {
+        envVars[env.name] = String(env.value);
+        log(`[JetBrains Parser] Found env var: ${env.name}=${env.value}`);
       }
     }
+
+    return Object.keys(envVars).length > 0 ? envVars : undefined;
   }
-  
+
   /**
    * Process a shell script configuration
    */
