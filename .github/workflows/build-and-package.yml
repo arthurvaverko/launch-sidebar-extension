@@ -17,12 +17,12 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
-        node-version: 20.x
+        node-version: 22.x
         cache: 'npm'
     
     - name: Install dependencies
@@ -41,7 +41,7 @@ jobs:
       run: npm run package
     
     - name: Upload extension package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: launch-sidebar-extension
         path: "*.vsix"
@@ -53,12 +53,12 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 20.x
+          node-version: 22.x
           cache: 'npm'
       
       - name: Install dependencies
