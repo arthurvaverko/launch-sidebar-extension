@@ -223,6 +223,17 @@ export function activate(context: vscode.ExtensionContext) {
         launchProvider.refresh();
       })
     );
+
+    // Rebuild the tree when our settings change; items carry a click command only
+    // while runOnClick is on, so the change has to be reflected on the items themselves
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeConfiguration(event => {
+        if (event.affectsConfiguration('launchSidebar')) {
+          logInfo('Launch Sidebar settings changed, refreshing');
+          launchProvider.refresh();
+        }
+      })
+    );
     
     // Register commands for the extension
     registerCommands(context, launchProvider, recentItemsManager, hiddenItemsManager);
@@ -256,27 +267,44 @@ function registerCommands(
     vscode.window.showInformationMessage('Launch configurations refreshed');
   });
   
-  // Command: Launch a debug configuration
-  const launchCommand = vscode.commands.registerCommand('launchConfigurations.launch', async (item: LaunchConfigurationItem) => {
+  /**
+   * Start a debug configuration, with or without the debugger attached
+   * @param item The configuration to start
+   * @param noDebug When true, run the configuration without attaching the debugger
+   */
+  const startConfiguration = async (item: LaunchConfigurationItem, noDebug: boolean): Promise<void> => {
     try {
-      if (item.workspaceFolder) {
-        // Start debugging with the selected configuration
-        await vscode.debug.startDebugging(item.workspaceFolder, item.configuration);
-        
-        // Add to recent items
-        recentItemsManager.addRecentItem(item);
-        launchConfigurationProvider.refresh();
-        
-        // Show notification
-        vscode.window.showInformationMessage(`Launched debug configuration: ${item.name}`);
-      } else {
+      if (!item.workspaceFolder) {
         vscode.window.showErrorMessage('Unable to launch configuration: No workspace folder found');
+        return;
       }
+
+      await vscode.debug.startDebugging(item.workspaceFolder, item.configuration, { noDebug });
+
+      // Add to recent items
+      recentItemsManager.addRecentItem(item);
+      launchConfigurationProvider.refresh();
+
+      // Show notification
+      const action = noDebug ? 'Running' : 'Launched debug configuration:';
+      vscode.window.showInformationMessage(`${action} ${item.name}`);
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to launch configuration: ${error}`);
     }
-  });
-  
+  };
+
+  // Command: Launch a debug configuration with the debugger attached
+  const launchCommand = vscode.commands.registerCommand(
+    'launchConfigurations.launch',
+    (item: LaunchConfigurationItem) => startConfiguration(item, false)
+  );
+
+  // Command: Run a debug configuration without attaching the debugger
+  const launchNoDebugCommand = vscode.commands.registerCommand(
+    'launchConfigurations.launchNoDebug',
+    (item: LaunchConfigurationItem) => startConfiguration(item, true)
+  );
+
   // Command: Edit a debug configuration
   const editCommand = vscode.commands.registerCommand('launchConfigurations.edit', async (item: LaunchConfigurationItem) => {
     try {
@@ -608,6 +636,7 @@ function registerCommands(
   context.subscriptions.push(
     refreshCommand,
     launchCommand,
+    launchNoDebugCommand,
     editCommand,
     runScriptCommand,
     editScriptCommand,
