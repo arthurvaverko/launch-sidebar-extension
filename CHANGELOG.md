@@ -5,6 +5,10 @@ All notable changes to the "launch-sidebar" extension will be documented in this
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
 ## [0.2.0] - 2026-07-30
+### Added
+- **Run Without Debugging**: debug configurations now have a second inline button that starts them with the debugger detached ([#1](https://github.com/arthurvaverko/launch-sidebar-extension/issues/1)). The play icon runs without debugging; the debug icon starts a debug session.
+- **`launchSidebar.runOnClick`** (default `false`): when enabled, clicking an item's name starts it, instead of having to use the play button ([#1](https://github.com/arthurvaverko/launch-sidebar-extension/issues/1)). Off by default so a stray click cannot launch anything.
+
 ### Changed
 - Hidden items and hidden sections are now remembered **per workspace** instead of globally ([#2](https://github.com/arthurvaverko/launch-sidebar-extension/issues/2)). Hiding an OS-specific launch configuration in one workspace no longer hides it in every other workspace. Anything you had hidden before this release is carried over the first time each workspace is opened, and from then on that workspace keeps its own list.
 

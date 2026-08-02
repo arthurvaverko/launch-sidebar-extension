@@ -209,7 +209,7 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
       }
       
       // Filter out hidden items
-      return items.filter(item => this.shouldShowItem(item));
+      return items.filter(item => this.shouldShowItem(item)).map(item => this.applyRunOnClick(item));
     }
     // If RecentItemsSection, return recent items
     else if (element instanceof RecentItemsSection) {
@@ -230,6 +230,42 @@ export class LaunchConfigurationProvider implements vscode.TreeDataProvider<Laun
     }
     
     return [];
+  }
+
+  /**
+   * The command that runs a given item, or undefined if it is not a runnable item.
+   * Public so the mapping can be tested without a live tree.
+   */
+  public static runCommandFor(item: LaunchTreeItem): string | undefined {
+    if (item instanceof LaunchConfigurationItem) {
+      return 'launchConfigurations.launch';
+    }
+    if (item instanceof ScriptItem) {
+      return 'launchConfigurations.runScript';
+    }
+    if (item instanceof JetBrainsRunConfigItem) {
+      return 'launchConfigurations.runJetBrainsConfig';
+    }
+    if (item instanceof MakefileTaskItem) {
+      return 'launchConfigurations.runMakefileTask';
+    }
+    return undefined;
+  }
+
+  /**
+   * Make clicking an item start it, when the user has opted in.
+   * Off by default: a stray click in the sidebar should not launch anything.
+   */
+  private applyRunOnClick(item: LaunchTreeItem): LaunchTreeItem {
+    if (!vscode.workspace.getConfiguration('launchSidebar').get<boolean>('runOnClick')) {
+      return item;
+    }
+
+    const command = LaunchConfigurationProvider.runCommandFor(item);
+    if (command) {
+      item.command = { command, title: 'Run', arguments: [item] };
+    }
+    return item;
   }
 
   /**
