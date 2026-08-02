@@ -59,7 +59,12 @@
       },
       {
         "command": "launchConfigurations.launch",
-        "title": "Launch Configuration",
+        "title": "Start Debugging",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "launchConfigurations.launchNoDebug",
+        "title": "Run Without Debugging",
         "icon": "$(play)"
       },
       {
@@ -133,14 +138,19 @@
       ],
       "view/item/context": [
         {
+          "command": "launchConfigurations.launchNoDebug",
+          "when": "view == launchConfigurations && viewItem == configuration",
+          "group": "inline@1"
+        },
+        {
           "command": "launchConfigurations.launch",
           "when": "view == launchConfigurations && viewItem == configuration",
-          "group": "inline"
+          "group": "inline@2"
         },
         {
           "command": "launchConfigurations.edit",
           "when": "view == launchConfigurations && viewItem == configuration",
-          "group": "inline"
+          "group": "inline@3"
         },
         {
           "command": "launchConfigurations.hideItem",
@@ -218,6 +228,16 @@
           "group": "1_modification"
         }
       ]
+    },
+    "configuration": {
+      "title": "Launch Sidebar",
+      "properties": {
+        "launchSidebar.runOnClick": {
+          "type": "boolean",
+          "default": false,
+          "description": "Start a configuration, script or task by clicking its name in the sidebar, instead of only from the play button. Debug configurations start with debugging attached."
+        }
+      }
     }
   },
   "scripts": {

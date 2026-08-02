@@ -12,6 +12,7 @@ Launch Sidebar is a VS Code extension that provides a convenient way to manage a
 
 ### Debug Configurations
 - 🚀 View and launch debug configurations from all workspace folders
+- ▶️ Start with or without the debugger — separate buttons for each
 - 🔄 Live updates when launch.json files change
 - ⚙️ One-click edit button for easy configuration modification
 - 🔍 Clearly organized by workspace folder with prominent section headers
@@ -39,9 +40,8 @@ Launch Sidebar is a VS Code extension that provides a convenient way to manage a
 - 👁️ Hide rarely used configurations with right-click context menu
 - 📁 Hide entire sections to reduce clutter in complex projects
 - 🔍 Manage hidden items through the dedicated button in the title bar
-- 🔢 Counter badge showing how many items are hidden
 - 🔄 Easily restore hidden items individually or all at once
-- 💾 Persistent storage of hidden items between VS Code sessions
+- 💾 Persistent, per-workspace storage of hidden items between VS Code sessions
 
 ### User Experience
 - 🌟 Clean, organized sidebar with hierarchical sections
@@ -55,8 +55,9 @@ Launch Sidebar is a VS Code extension that provides a convenient way to manage a
 1. Install the extension from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=arthurvaverko.launch-sidebar)
 2. Click on the rocket icon in the activity bar to open the Launch Sidebar
 3. Browse your debug configurations and npm scripts organized by workspace folder
-4. Click the play button (▶️) next to any item to run it
-5. Click the gear icon (⚙️) to edit the configuration or script
+4. Click the play button (▶️) next to any item to run it. Debug configurations also have a
+   debug button (🐞) that starts them with the debugger attached
+5. Click the pencil icon (✏️) to jump to the configuration or script definition
 
 ## Smart Package Manager Detection
 
@@ -73,11 +74,19 @@ To keep your sidebar clean and organized:
 
 1. **Hide an item**: Right-click on any configuration and select "Hide Item"
 2. **Hide an entire section**: Right-click on a section header and select "Hide Section"
-3. **Manage hidden items**: Click the eye icon in the title bar (shows count of hidden items)
+3. **Manage hidden items**: Click the eye icon in the title bar
 4. **Restore items**: Select an item from the quickpick menu or choose "Restore All"
 
 Hidden items and sections are stored persistently and will remain hidden even after restarting VS Code.
-Tooltips indicate when sections have hidden items, making it easy to remember what's hidden.
+They are remembered **per workspace**, so hiding a platform-specific configuration in one project
+does not hide it everywhere else. Tooltips indicate when sections have hidden items, making it easy
+to remember what's hidden.
+
+## Settings
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| `launchSidebar.runOnClick` | `false` | Start a configuration, script or task by clicking its name, instead of only from the play button. Off by default so a stray click can't launch anything. |
 
 ## Customization
 
@@ -96,7 +105,7 @@ The extension provides visual distinctions for different script and Makefile tas
 
 ## Requirements
 
-- Visual Studio Code 1.74.0 or higher
+- Visual Studio Code 1.96.0 or higher
 - For debug configurations: At least one workspace folder with `.vscode/launch.json`
 - For npm scripts: At least one `package.json` file with scripts defined
 - For JetBrains configurations: A `.run` folder with XML configuration files
@@ -125,18 +134,4 @@ Ensure that you've read through the extensions guidelines and follow the best pr
 
 * [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
 
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
 **Enjoy!**
-# launch-sidebar-extension
