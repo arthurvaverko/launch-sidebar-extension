@@ -40,15 +40,29 @@ export class HiddenItemsManager {
   }
   
   /**
+   * Read a stored list, preferring this workspace's own value.
+   *
+   * Hidden items used to live in globalState, which meant hiding an OS-specific launch
+   * configuration in one workspace hid it in every other workspace too. They are now kept
+   * per workspace; a workspace that has never stored anything falls back to the old global
+   * list once, so upgrading users keep what they had hidden. From the first change onwards
+   * the workspace has its own copy and the global list is no longer consulted.
+   */
+  private load(storageKey: string): HiddenItem[] {
+    const workspaceValue = this._context.workspaceState.get<HiddenItem[]>(storageKey);
+    if (workspaceValue) {
+      return workspaceValue;
+    }
+    return this._context.globalState.get<HiddenItem[]>(storageKey) ?? [];
+  }
+
+  /**
    * Load hidden items from storage
    */
   private loadHiddenItems(): void {
     try {
-      const savedItems = this._context.globalState.get<HiddenItem[]>(this._itemsStorageKey);
-      if (savedItems) {
-        this._hiddenItems = savedItems;
-        logInfo(`Loaded ${this._hiddenItems.length} hidden items from storage`);
-      }
+      this._hiddenItems = this.load(this._itemsStorageKey);
+      logInfo(`Loaded ${this._hiddenItems.length} hidden items from storage`);
     } catch (error) {
       logInfo(`Error loading hidden items: ${error}`);
       this._hiddenItems = [];
@@ -60,22 +74,19 @@ export class HiddenItemsManager {
    */
   private loadHiddenSections(): void {
     try {
-      const savedSections = this._context.globalState.get<HiddenItem[]>(this._sectionsStorageKey);
-      if (savedSections) {
-        this._hiddenSections = savedSections;
-        logInfo(`Loaded ${this._hiddenSections.length} hidden sections from storage`);
-      }
+      this._hiddenSections = this.load(this._sectionsStorageKey);
+      logInfo(`Loaded ${this._hiddenSections.length} hidden sections from storage`);
     } catch (error) {
       logInfo(`Error loading hidden sections: ${error}`);
       this._hiddenSections = [];
     }
   }
-  
+
   /**
    * Save hidden items to storage
    */
   private saveHiddenItems(): void {
-    this._context.globalState.update(this._itemsStorageKey, this._hiddenItems);
+    this._context.workspaceState.update(this._itemsStorageKey, this._hiddenItems);
     logDebug(`Saved ${this._hiddenItems.length} hidden items to storage`);
     this._onDidChangeHiddenItems.fire();
   }
@@ -84,7 +95,7 @@ export class HiddenItemsManager {
    * Save hidden sections to storage
    */
   private saveHiddenSections(): void {
-    this._context.globalState.update(this._sectionsStorageKey, this._hiddenSections);
+    this._context.workspaceState.update(this._sectionsStorageKey, this._hiddenSections);
     logDebug(`Saved ${this._hiddenSections.length} hidden sections to storage`);
     this._onDidChangeHiddenItems.fire();
   }
