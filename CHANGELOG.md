@@ -4,6 +4,10 @@ All notable changes to the "launch-sidebar" extension will be documented in this
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.2.0] - 2026-07-30
+### Changed
+- Hidden items and hidden sections are now remembered **per workspace** instead of globally ([#2](https://github.com/arthurvaverko/launch-sidebar-extension/issues/2)). Hiding an OS-specific launch configuration in one workspace no longer hides it in every other workspace. Anything you had hidden before this release is carried over the first time each workspace is opened, and from then on that workspace keeps its own list.
+
 ## [0.1.0] - 2026-07-28
 ### Fixed
 - Live refresh on `launch.json`, `package.json` and `Makefile` changes: a duplicate command registration threw during activation and prevented the file watchers from ever registering. This also removes the error notification that appeared on every activation.

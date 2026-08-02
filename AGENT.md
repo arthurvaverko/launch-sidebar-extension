@@ -11,7 +11,7 @@ Launch Sidebar is a VS Code extension that creates a dedicated sidebar view allo
 
 The extension provides a unified, hierarchical view organized by workspace folder, with one-click execution capabilities.
 
-Current version: 0.1.0
+Current version: 0.2.0
 
 ## Key Features
 
@@ -145,20 +145,20 @@ The hidden items functionality is implemented with the following components:
 
 1. **HiddenItemsManager** (`src/models/hidden-items-manager.ts`):
    - Maintains lists of hidden items and sections
-   - Persists hidden items using VS Code's extension context storage
+   - Persists them in `context.workspaceState`, so hiding something in one workspace does
+     not hide it in others. Reads fall back to the legacy `globalState` list once, for
+     workspaces that predate the change; the first write makes the workspace self-contained
    - Provides methods to hide, restore, and check items and sections
    - Fires events when the hidden items list changes
 
 2. **Launch Configuration Provider** (`src/providers/launch-configuration-provider.ts`):
    - Filters out hidden items and sections from the tree view
    - Adds visual indicators to sections with hidden items
-   - Updates the title bar icon to show the number of hidden items
    - Uses a consistent ID generation scheme to uniquely identify sections
 
 3. **Extension Entry Point** (`src/extension.ts`):
    - Registers commands for hiding items and sections
    - Manages the dialog for restoring hidden items
-   - Handles proxy commands for the title bar
 
 Section IDs are generated with a consistent scheme that includes:
 - Section type (e.g., scripts, launch configurations)
